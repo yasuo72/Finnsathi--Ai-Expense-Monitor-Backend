@@ -1,0 +1,122 @@
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const dotenv = require('dotenv');
+const bodyParser = require('body-parser');
+const path = require('path');
+const fileUpload = require('express-fileupload');
+
+// Load environment variables
+dotenv.config();
+
+// Import routes
+const authRoutes = require('./routes/auth.routes');
+const userRoutes = require('./routes/user.routes');
+const transactionRoutes = require('./routes/transaction.routes');
+const budgetRoutes = require('./routes/budget.routes');
+const savingsGoalRoutes = require('./routes/savingsGoal.routes');
+const walletRoutes = require('./routes/wallet.routes');
+const gamificationRoutes = require('./routes/gamification.routes');
+const statisticsRoutes = require('./routes/statistics.routes');
+const notificationRoutes = require('./routes/notification.routes');
+const chatbotRoutes = require('./routes/chatbot.routes');
+const predictionRoutes = require('./routes/prediction.routes');
+const uploadRoutes = require('./routes/upload.routes');
+
+// Initialize Express app
+const app = express();
+
+// Middleware
+// Configure CORS
+// Configure CORS based on environment
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://finnsathi.vercel.app', /\.railway\.app$/] // Add your frontend domains
+    : process.env.CORS_ORIGIN || '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
+
+app.use(cors(corsOptions));
+
+// Body parser middleware
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
+
+// File upload middleware with environment-specific configuration
+app.use(fileUpload({
+  useTempFiles: process.env.NODE_ENV === 'production',
+  tempFileDir: process.env.NODE_ENV === 'production' ? '/tmp/' : './tmp/',
+  createParentPath: true,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max file size
+  debug: process.env.NODE_ENV !== 'production'
+}));
+
+// Regular express.json() parser
+app.use(express.json());
+
+// Set up static file serving for uploads
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+
+// Create uploads directory if it doesn't exist
+const fs = require('fs');
+const uploadDir = path.join(__dirname, 'public/uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Connect to MongoDB
+const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URL || 'mongodb://localhost:27017/finnsathi';
+
+mongoose.connect(mongoUri)
+.then(() => console.log('MongoDB connected'))
+.catch(err => console.error('MongoDB connection error:', err));
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/budgets', budgetRoutes);
+app.use('/api/savings-goals', savingsGoalRoutes);
+app.use('/api/upload', uploadRoutes);
+app.use('/api/wallet', walletRoutes);
+app.use('/api/gamification', gamificationRoutes);
+app.use('/api/statistics', statisticsRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/chatbot', chatbotRoutes);
+app.use('/api/predictions', predictionRoutes);
+
+// Root route
+app.get('/', (req, res) => {
+  res.json({ message: 'Welcome to FinSathi API' });
+});
+
+// Health check endpoint for Railway
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Error handling middleware (must be after routes)
+const errorHandler = require('./middleware/errorHandler');
+app.use(errorHandler);
+
+// 404 handler for routes not found
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'API endpoint not found'
+  });
+});
+
+// Start server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+});
