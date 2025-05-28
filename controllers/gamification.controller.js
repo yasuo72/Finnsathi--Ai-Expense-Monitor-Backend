@@ -114,10 +114,11 @@ exports.getChallenges = async (req, res) => {
 };
 
 // @desc    Complete a challenge
-// @route   POST /api/gamification/challenges/:id/complete
+// @route   PUT /api/gamification/challenges/:id/complete
 // @access  Private
 exports.completeChallenge = async (req, res) => {
   try {
+    // Find user's gamification data
     const gamification = await Gamification.findOne({ user: req.user.id });
     
     if (!gamification) {
@@ -144,6 +145,7 @@ exports.completeChallenge = async (req, res) => {
       });
     }
     
+    // Check if already completed
     if (challenge.isCompleted) {
       return res.status(400).json({
         success: false,
@@ -151,29 +153,57 @@ exports.completeChallenge = async (req, res) => {
       });
     }
     
-    // Mark as completed and add points
+    // Mark as completed
     challenge.isCompleted = true;
     challenge.completedDate = new Date();
+    
+    // Add points to user's total
     gamification.points += challenge.points;
     
-    // Check if level up is needed
+    // Check if user leveled up
     const oldLevel = gamification.level;
-    gamification.level = Math.floor(gamification.points / 100) + 1;
+    const pointsForNextLevel = oldLevel * 100;
     
-    const leveledUp = gamification.level > oldLevel;
+    if (gamification.points >= pointsForNextLevel) {
+      gamification.level += 1;
+    }
     
-    await gamification.save();
+    // Save using findOneAndUpdate with upsert to handle potential race conditions
+    const updatedGamification = await Gamification.findOneAndUpdate(
+      { user: req.user.id },
+      { $set: gamification.toObject() },
+      { 
+        new: true,
+        upsert: true,
+        runValidators: true,
+        setDefaultsOnInsert: true
+      }
+    );
+    
+    // Find the updated challenge in the returned document
+    const updatedChallenge = updatedGamification.challenges.find(c => 
+      c.id === req.params.id || c._id.toString() === req.params.id
+    );
+    
+    // Prepare response data
+    const responseData = {
+      challenge: {
+        id: updatedChallenge.id,
+        title: updatedChallenge.title,
+        points: updatedChallenge.points,
+        isCompleted: updatedChallenge.isCompleted,
+        completedDate: updatedChallenge.completedDate
+      },
+      gamification: {
+        points: updatedGamification.points,
+        level: updatedGamification.level,
+        leveledUp: updatedGamification.level > oldLevel
+      }
+    };
     
     res.status(200).json({
       success: true,
-      data: {
-        challenge,
-        points: gamification.points,
-        level: gamification.level,
-        leveledUp,
-        nextLevelXP: gamification.nextLevelXP,
-        levelProgress: gamification.levelProgress
-      }
+      data: responseData
     });
   } catch (error) {
     console.error(error);
@@ -567,30 +597,33 @@ async function checkAchievements(userId, gamification) {
 // @access  Private
 exports.updateGamificationData = async (req, res) => {
   try {
-    let gamification = await Gamification.findOne({ user: req.user.id });
+    // Prepare update object with only the fields we want to update
+    const updateObj = {};
     
-    if (!gamification) {
-      return res.status(404).json({
-        success: false,
-        message: 'Gamification data not found'
-      });
-    }
+    if (req.body.streak !== undefined) updateObj.streak = req.body.streak;
+    if (req.body.lastActivityDate !== undefined) updateObj.lastActive = new Date(req.body.lastActivityDate);
+    if (req.body.points !== undefined) updateObj.points = req.body.points;
+    if (req.body.level !== undefined) updateObj.level = req.body.level;
+    if (req.body.financialHealthScore !== undefined) updateObj.financialHealthScore = req.body.financialHealthScore;
+    if (req.body.coins !== undefined) updateObj.coins = req.body.coins;
     
-    // Update fields from request body
-    if (req.body.streak !== undefined) gamification.streak = req.body.streak;
+    // Handle longest streak separately with a conditional update
     if (req.body.longestStreak !== undefined) {
-      // Only update if the new streak is longer
-      if (req.body.longestStreak > gamification.longestStreak) {
-        gamification.longestStreak = req.body.longestStreak;
-      }
+      // Use $max operator to only update if new value is greater
+      updateObj.$max = { longestStreak: req.body.longestStreak };
     }
-    if (req.body.lastActivityDate !== undefined) gamification.lastActive = new Date(req.body.lastActivityDate);
-    if (req.body.points !== undefined) gamification.points = req.body.points;
-    if (req.body.level !== undefined) gamification.level = req.body.level;
-    if (req.body.financialHealthScore !== undefined) gamification.financialHealthScore = req.body.financialHealthScore;
     
-    // Save the updated gamification data
-    await gamification.save();
+    // Use findOneAndUpdate with upsert option to create if not exists
+    const gamification = await Gamification.findOneAndUpdate(
+      { user: req.user.id },
+      updateObj,
+      { 
+        new: true, // Return the updated document
+        upsert: true, // Create if it doesn't exist
+        runValidators: true, // Run schema validators
+        setDefaultsOnInsert: true // Apply default values on insert
+      }
+    );
     
     res.status(200).json({
       success: true,
@@ -610,12 +643,46 @@ exports.updateGamificationData = async (req, res) => {
 // @access  Private
 exports.updateChallenges = async (req, res) => {
   try {
+    // Helper function to validate and fix challenge data
+    function validateChallengeData(challenge) {
+      // Create a copy to avoid modifying the original
+      const validated = { ...challenge };
+      
+      // Ensure required fields are present
+      validated.title = validated.title || 'Unnamed Challenge';
+      validated.description = validated.description || 'No description provided';
+      validated.points = validated.points || 10;
+      
+      // Ensure type is valid
+      const validTypes = ['daily', 'weekly', 'monthly', 'one-time'];
+      if (!validTypes.includes(validated.type)) {
+        console.log(`Invalid challenge type: ${validated.type}, defaulting to 'daily'`);
+        validated.type = 'daily';
+      }
+      
+      // Ensure category is valid
+      const validCategories = ['savings', 'spending', 'budgeting', 'tracking'];
+      if (!validCategories.includes(validated.category)) {
+        console.log(`Invalid or missing category: ${validated.category}, defaulting to 'tracking'`);
+        validated.category = 'tracking';
+      }
+      
+      // Set default values for optional fields
+      validated.isCompleted = validated.isCompleted || false;
+      validated.icon = validated.icon || 'star';
+      
+      return validated;
+    }
+    
+    // First, try to find existing gamification data
     let gamification = await Gamification.findOne({ user: req.user.id });
     
+    // If no gamification data exists, create a new one
     if (!gamification) {
-      return res.status(404).json({
-        success: false,
-        message: 'Gamification data not found'
+      console.log('Creating new gamification data for user');
+      gamification = new Gamification({
+        user: req.user.id,
+        challenges: []
       });
     }
     
@@ -623,37 +690,51 @@ exports.updateChallenges = async (req, res) => {
     if (req.body.challenges && Array.isArray(req.body.challenges)) {
       console.log(`Received ${req.body.challenges.length} challenges to update`);
       
-      // For each challenge in the request, update or add it
-      req.body.challenges.forEach(incomingChallenge => {
+      // Process each challenge
+      const processedChallenges = req.body.challenges.map(challenge => validateChallengeData(challenge));
+      
+      // For each validated challenge
+      processedChallenges.forEach(validatedChallenge => {
         // Try to find an existing challenge with the same ID
-        let existingChallenge = gamification.challenges.id(incomingChallenge.id);
+        let existingChallenge = gamification.challenges.id(validatedChallenge.id);
         
         // If not found by MongoDB ID, try to find by string ID
-        if (!existingChallenge && incomingChallenge.id) {
-          existingChallenge = gamification.challenges.find(c => c.id === incomingChallenge.id);
+        if (!existingChallenge && validatedChallenge.id) {
+          existingChallenge = gamification.challenges.find(c => c.id === validatedChallenge.id);
         }
         
         if (existingChallenge) {
           console.log(`Updating existing challenge: ${existingChallenge.id}`);
           // Update existing challenge
-          Object.keys(incomingChallenge).forEach(key => {
-            existingChallenge[key] = incomingChallenge[key];
+          Object.keys(validatedChallenge).forEach(key => {
+            if (key !== '_id') { // Don't try to update the _id field
+              existingChallenge[key] = validatedChallenge[key];
+            }
           });
         } else {
-          console.log(`Adding new challenge: ${incomingChallenge.id || 'unknown id'}`);
+          console.log(`Adding new challenge: ${validatedChallenge.id || 'unknown id'}`);
           // Add new challenge
-          gamification.challenges.push(incomingChallenge);
+          gamification.challenges.push(validatedChallenge);
         }
       });
     }
     
-    // Save the updated gamification data
-    await gamification.save();
+    // Save using findOneAndUpdate with upsert to handle potential race conditions
+    const updatedGamification = await Gamification.findOneAndUpdate(
+      { user: req.user.id },
+      { $set: gamification.toObject() },
+      { 
+        new: true,
+        upsert: true,
+        runValidators: true,
+        setDefaultsOnInsert: true
+      }
+    );
     
     res.status(200).json({
       success: true,
       data: {
-        challenges: gamification.challenges
+        challenges: updatedGamification.challenges
       }
     });
   } catch (error) {
