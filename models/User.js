@@ -123,6 +123,24 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: 'default-profile.jpg'
   },
+  profilePictureData: {
+    url: {
+      type: String,
+      default: null
+    },
+    uploadDate: {
+      type: Date,
+      default: null
+    },
+    size: {
+      type: Number,
+      default: null
+    },
+    contentType: {
+      type: String,
+      default: null
+    }
+  },
   bio: {
     type: String,
     maxlength: [500, 'Bio cannot be more than 500 characters']

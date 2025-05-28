@@ -67,10 +67,26 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 // Connect to MongoDB
+// You can use an existing MongoDB URL by setting MONGODB_URI in your .env file
+// For different apps using the same MongoDB instance, you can use different database names:
+// Example: mongodb+srv://username:password@cluster.mongodb.net/finnsathi
+// vs:      mongodb+srv://username:password@cluster.mongodb.net/other_app_name
 const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URL || 'mongodb://localhost:27017/finnsathi';
 
+// Optional: Extract database name from connection string for logging
+let dbName = 'finnsathi';
+try {
+  // Try to extract database name from the connection string
+  const urlParts = mongoUri.split('/');
+  if (urlParts.length > 3) {
+    dbName = urlParts[urlParts.length - 1].split('?')[0];
+  }
+} catch (e) {
+  // Ignore parsing errors
+}
+
 mongoose.connect(mongoUri)
-.then(() => console.log('MongoDB connected'))
+.then(() => console.log(`MongoDB connected to database: ${dbName}`))
 .catch(err => console.error('MongoDB connection error:', err));
 
 // Routes

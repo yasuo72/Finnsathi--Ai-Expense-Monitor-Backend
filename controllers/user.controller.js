@@ -296,64 +296,92 @@ exports.uploadProfilePicture = async (req, res) => {
       });
     }
     
-    // Make sure the uploads directory exists
-    const uploadsDir = './public/uploads';
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-    
-    // Create custom filename
-    const path = require('path');
-    const fileName = `photo_${req.user.id}_${Date.now()}${path.parse(file.name).ext}`;
-    const filePath = `${uploadsDir}/${fileName}`;
-    
-    // Move file to upload path using a promise-based approach
-    await new Promise((resolve, reject) => {
-      file.mv(filePath, (err) => {
-        if (err) {
-          console.error('File upload error:', err);
-          reject(err);
-        } else {
-          resolve();
-        }
-      });
-    });
-    
     // Find user
     const user = await User.findById(req.user.id);
     
     if (!user) {
-      // Remove the uploaded file if user not found
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-      
       return res.status(404).json({
         success: false,
         message: 'User not found'
       });
     }
     
-    // Delete old profile picture if it's not the default
-    if (user.profilePicture && user.profilePicture !== 'default-profile.jpg') {
-      const oldFilePath = `./public${user.profilePicture}`;
-      if (fs.existsSync(oldFilePath)) {
-        fs.unlinkSync(oldFilePath);
+    // Determine storage method based on configuration
+    const useFileSystem = process.env.PROFILE_STORAGE === 'filesystem';
+    
+    if (useFileSystem) {
+      // FILESYSTEM STORAGE METHOD
+      // Make sure the uploads directory exists
+      const uploadsDir = './public/uploads';
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
       }
+      
+      // Create custom filename
+      const fileName = `photo_${req.user.id}_${Date.now()}${path.parse(file.name).ext}`;
+      const filePath = `${uploadsDir}/${fileName}`;
+      
+      // Move file to upload path using a promise-based approach
+      await new Promise((resolve, reject) => {
+        file.mv(filePath, (err) => {
+          if (err) {
+            console.error('File upload error:', err);
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
+      });
+      
+      // Delete old profile picture if it's not the default
+      if (user.profilePicture && user.profilePicture !== 'default-profile.jpg') {
+        const oldFilePath = `./public${user.profilePicture}`;
+        if (fs.existsSync(oldFilePath)) {
+          fs.unlinkSync(oldFilePath);
+        }
+      }
+      
+      // Update user profile with file path
+      const profilePicture = `/uploads/${fileName}`;
+      user.profilePicture = profilePicture;
+      
+      // Update metadata
+      user.profilePictureData = {
+        url: profilePicture,
+        uploadDate: new Date(),
+        size: file.size,
+        contentType: file.mimetype
+      };
+    } else {
+      // DATABASE STORAGE METHOD
+      // Convert file data to base64 for storage in database
+      const base64Data = file.data.toString('base64');
+      const dataUrl = `data:${file.mimetype};base64,${base64Data}`;
+      
+      // Update user profile with data URL
+      user.profilePicture = dataUrl;
+      
+      // Update metadata
+      user.profilePictureData = {
+        url: null, // No URL for database storage
+        uploadDate: new Date(),
+        size: file.size,
+        contentType: file.mimetype
+      };
+      
+      console.log(`Profile picture for user ${user._id} stored in database (${Math.round(file.size/1024)}KB)`);
     }
     
-    // Update user profile
-    const profilePicture = `/uploads/${fileName}`;
-    user.profilePicture = profilePicture;
     await user.save();
     
     res.status(200).json({
       success: true,
       message: 'Profile picture updated successfully',
       data: {
-        profilePicture,
+        profilePicture: user.profilePicture,
         id: user._id,
-        name: user.name
+        name: user.name,
+        uploadDate: user.profilePictureData.uploadDate
       }
     });
   } catch (error) {

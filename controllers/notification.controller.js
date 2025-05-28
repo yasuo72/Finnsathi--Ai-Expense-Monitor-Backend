@@ -487,3 +487,104 @@ exports.updateNotificationSettings = async (req, res) => {
     });
   }
 };
+
+// @desc    Sync notifications with frontend
+// @route   POST /api/notifications/sync
+// @access  Private
+exports.syncNotifications = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { localNotifications, lastSyncTimestamp } = req.body;
+    
+    if (!Array.isArray(localNotifications)) {
+      return res.status(400).json({
+        success: false,
+        message: 'localNotifications must be an array'
+      });
+    }
+    
+    // Get server notifications created after the last sync
+    const lastSync = lastSyncTimestamp ? new Date(lastSyncTimestamp) : new Date(0);
+    const serverNotifications = await Notification.find({
+      user: userId,
+      createdAt: { $gt: lastSync }
+    }).sort({ createdAt: -1 });
+    
+    // Process local notifications that don't exist on the server
+    const newNotifications = [];
+    const processedIds = new Set();
+    
+    for (const localNotif of localNotifications) {
+      // Skip if this notification already exists on the server (has a valid MongoDB ID)
+      if (mongoose.Types.ObjectId.isValid(localNotif._id)) {
+        const exists = await Notification.findOne({ _id: localNotif._id, user: userId });
+        if (exists) {
+          processedIds.add(localNotif._id.toString());
+          continue;
+        }
+      }
+      
+      // Create a new notification on the server
+      const newNotification = new Notification({
+        user: userId,
+        title: localNotif.title || 'Notification',
+        message: localNotif.message || 'No message provided',
+        type: localNotif.type || 'info',
+        icon: localNotif.icon || 'notification',
+        color: localNotif.color || '#4A6CF7',
+        isRead: localNotif.isRead || false,
+        actionLink: localNotif.actionLink || null,
+        relatedItemId: localNotif.relatedItemId || null,
+        relatedItemType: localNotif.relatedItemType || null,
+        createdAt: localNotif.createdAt ? new Date(localNotif.createdAt) : new Date(),
+        expiresAt: localNotif.expiresAt ? new Date(localNotif.expiresAt) : null
+      });
+      
+      await newNotification.save();
+      newNotifications.push(newNotification);
+      processedIds.add(newNotification._id.toString());
+    }
+    
+    // Update read status for any notifications that were marked as read locally
+    const readNotificationIds = localNotifications
+      .filter(n => n.isRead && mongoose.Types.ObjectId.isValid(n._id))
+      .map(n => n._id);
+    
+    if (readNotificationIds.length > 0) {
+      await Notification.updateMany(
+        { _id: { $in: readNotificationIds }, user: userId },
+        { $set: { isRead: true } }
+      );
+    }
+    
+    // Combine server notifications with newly created ones, excluding duplicates
+    const allServerNotifications = [
+      ...serverNotifications.filter(n => !processedIds.has(n._id.toString())),
+      ...newNotifications
+    ];
+    
+    // Count total unread notifications
+    const unreadCount = await Notification.countDocuments({ 
+      user: userId, 
+      isRead: false 
+    });
+    
+    res.status(200).json({
+      success: true,
+      message: 'Notifications synced successfully',
+      data: {
+        notifications: allServerNotifications,
+        unreadCount,
+        newCount: newNotifications.length,
+        syncTimestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Error in syncNotifications:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
