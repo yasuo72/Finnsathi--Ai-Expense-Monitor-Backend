@@ -488,6 +488,35 @@ exports.updateNotificationSettings = async (req, res) => {
   }
 };
 
+// @desc    Get unread notification count
+// @route   GET /api/notifications/unread-count
+// @access  Private
+exports.getUnreadCount = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Count total unread notifications
+    const unreadCount = await Notification.countDocuments({ 
+      user: userId, 
+      isRead: false 
+    });
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        unreadCount
+      }
+    });
+  } catch (error) {
+    console.error('Error in getUnreadCount:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
 // @desc    Sync notifications with frontend
 // @route   POST /api/notifications/sync
 // @access  Private

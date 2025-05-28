@@ -127,10 +127,17 @@ exports.completeChallenge = async (req, res) => {
       });
     }
     
-    // Find the challenge
-    const challenge = gamification.challenges.id(req.params.id);
+    // Find the challenge - try both MongoDB ID and string ID matching
+    let challenge = gamification.challenges.id(req.params.id);
+    
+    // If not found by MongoDB ID, try to find by string ID
+    if (!challenge) {
+      challenge = gamification.challenges.find(c => c.id === req.params.id);
+    }
     
     if (!challenge) {
+      console.log(`Challenge not found: ${req.params.id}`);
+      console.log(`Available challenges: ${gamification.challenges.map(c => c.id).join(', ')}`);
       return res.status(404).json({
         success: false,
         message: 'Challenge not found'
@@ -614,17 +621,26 @@ exports.updateChallenges = async (req, res) => {
     
     // Update challenges if provided
     if (req.body.challenges && Array.isArray(req.body.challenges)) {
+      console.log(`Received ${req.body.challenges.length} challenges to update`);
+      
       // For each challenge in the request, update or add it
       req.body.challenges.forEach(incomingChallenge => {
         // Try to find an existing challenge with the same ID
-        const existingChallenge = gamification.challenges.id(incomingChallenge.id);
+        let existingChallenge = gamification.challenges.id(incomingChallenge.id);
+        
+        // If not found by MongoDB ID, try to find by string ID
+        if (!existingChallenge && incomingChallenge.id) {
+          existingChallenge = gamification.challenges.find(c => c.id === incomingChallenge.id);
+        }
         
         if (existingChallenge) {
+          console.log(`Updating existing challenge: ${existingChallenge.id}`);
           // Update existing challenge
           Object.keys(incomingChallenge).forEach(key => {
             existingChallenge[key] = incomingChallenge[key];
           });
         } else {
+          console.log(`Adding new challenge: ${incomingChallenge.id || 'unknown id'}`);
           // Add new challenge
           gamification.challenges.push(incomingChallenge);
         }
@@ -642,9 +658,12 @@ exports.updateChallenges = async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating challenges:', error);
+    console.error('Request body:', JSON.stringify(req.body, null, 2));
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'production' ? null : error.stack
     });
   }
 };
