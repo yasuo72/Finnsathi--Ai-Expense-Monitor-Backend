@@ -2,6 +2,8 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const NotificationService = require('../services/notification.service');
+const fs = require('fs');
+const path = require('path');
 
 // @desc    Register user
 // @route   POST /api/auth/signup
@@ -19,14 +21,98 @@ exports.signup = async (req, res) => {
       });
     }
 
-    // Create user
-    const user = await User.create({
+    // Initialize user data
+    const userData = {
       name,
       email,
       password,
       dob,
       mobile
-    });
+    };
+
+    // Handle profile image if provided
+    let profilePicturePath = null;
+    if (req.files && req.files.profileImage) {
+      const file = req.files.profileImage;
+      
+      // Check if image
+      if (!file.mimetype.startsWith('image')) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please upload an image file for profile picture'
+        });
+      }
+      
+      // Check file size (limit to 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        return res.status(400).json({
+          success: false,
+          message: 'Profile image size should be less than 5MB'
+        });
+      }
+      
+      // Determine storage method based on configuration
+      const useFileSystem = process.env.PROFILE_STORAGE !== 'database';
+      
+      if (useFileSystem) {
+        // FILESYSTEM STORAGE METHOD
+        // Make sure the uploads directory exists
+        const uploadsDir = './public/uploads';
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+        
+        // Create custom filename
+        const fileName = `photo_${Date.now()}${path.parse(file.name).ext}`;
+        const filePath = `${uploadsDir}/${fileName}`;
+        
+        // Move file to upload path
+        await new Promise((resolve, reject) => {
+          file.mv(filePath, (err) => {
+            if (err) {
+              console.error('File upload error during signup:', err);
+              reject(err);
+            } else {
+              resolve();
+            }
+          });
+        });
+        
+        // Set profile picture path
+        profilePicturePath = `/uploads/${fileName}`;
+        userData.profilePicture = profilePicturePath;
+        
+        // Add metadata
+        userData.profilePictureData = {
+          url: profilePicturePath,
+          uploadDate: new Date(),
+          size: file.size,
+          contentType: file.mimetype
+        };
+      } else {
+        // DATABASE STORAGE METHOD
+        // Convert file data to base64 for storage in database
+        const base64Data = file.data.toString('base64');
+        const dataUrl = `data:${file.mimetype};base64,${base64Data}`;
+        
+        // Set profile picture data URL
+        profilePicturePath = dataUrl;
+        userData.profilePicture = dataUrl;
+        
+        // Add metadata
+        userData.profilePictureData = {
+          url: null, // No URL for database storage
+          uploadDate: new Date(),
+          size: file.size,
+          contentType: file.mimetype
+        };
+        
+        console.log(`Profile picture for new user stored in database (${Math.round(file.size/1024)}KB)`);
+      }
+    }
+
+    // Create user
+    const user = await User.create(userData);
 
     // Generate token
     const token = user.getSignedJwtToken();
