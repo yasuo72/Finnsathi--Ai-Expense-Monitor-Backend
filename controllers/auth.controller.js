@@ -32,18 +32,38 @@ exports.signup = async (req, res) => {
 
     // Handle profile image if provided
     let profilePicturePath = null;
+    console.log('Request files:', req.files ? Object.keys(req.files) : 'none');
+    console.log('Request body:', req.body);
+    
     if (req.files && (req.files.profileImage || req.files.profilePicture)) {
-      // Support both parameter names for backward compatibility
-      const file = req.files.profilePicture || req.files.profileImage;
-      
-      console.log('Profile image received:', file.name, file.mimetype, file.size);
-      
-      // Check if image
-      if (!file.mimetype.startsWith('image')) {
-        console.log('Invalid file mimetype:', file.mimetype);
+      try {
+        // Support both parameter names for backward compatibility
+        const file = req.files.profilePicture || req.files.profileImage;
+        
+        console.log('Profile image received:', file.name, file.mimetype, file.size);
+        
+        // Check if image
+        if (!file.mimetype.startsWith('image')) {
+          console.log('Invalid file mimetype:', file.mimetype);
+          return res.status(400).json({
+            success: false,
+            message: 'Please upload an image file for profile picture'
+          });
+        }
+        
+        // Make sure the file is not empty
+        if (file.size === 0) {
+          console.log('Empty file received');
+          return res.status(400).json({
+            success: false,
+            message: 'The uploaded profile picture file is empty'
+          });
+        }
+      } catch (error) {
+        console.error('Error processing profile image:', error);
         return res.status(400).json({
           success: false,
-          message: 'Please upload an image file for profile picture'
+          message: 'Error processing profile image: ' + error.message
         });
       }
       
