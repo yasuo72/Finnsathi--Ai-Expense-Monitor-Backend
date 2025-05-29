@@ -36,10 +36,10 @@ exports.signup = async (req, res) => {
     console.log('Request body:', req.body);
     
     if (req.files && (req.files.profileImage || req.files.profilePicture)) {
+      // Support both parameter names for backward compatibility
+      const file = req.files.profilePicture || req.files.profileImage;
+      
       try {
-        // Support both parameter names for backward compatibility
-        const file = req.files.profilePicture || req.files.profileImage;
-        
         console.log('Profile image received:', file.name, file.mimetype, file.size);
         
         // Check if image
@@ -59,6 +59,14 @@ exports.signup = async (req, res) => {
             message: 'The uploaded profile picture file is empty'
           });
         }
+        
+        // Check file size (limit to 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          return res.status(400).json({
+            success: false,
+            message: 'Profile image size should be less than 5MB'
+          });
+        }
       } catch (error) {
         console.error('Error processing profile image:', error);
         return res.status(400).json({
@@ -67,52 +75,71 @@ exports.signup = async (req, res) => {
         });
       }
       
-      // Check file size (limit to 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        return res.status(400).json({
-          success: false,
-          message: 'Profile image size should be less than 5MB'
-        });
-      }
-      
       // Determine storage method based on configuration
       const useFileSystem = process.env.PROFILE_STORAGE !== 'database';
       
       if (useFileSystem) {
         // FILESYSTEM STORAGE METHOD
-        // Make sure the uploads directory exists
-        const uploadsDir = './public/uploads';
-        if (!fs.existsSync(uploadsDir)) {
-          fs.mkdirSync(uploadsDir, { recursive: true });
-        }
-        
-        // Create custom filename
-        const fileName = `photo_${Date.now()}${path.parse(file.name).ext}`;
-        const filePath = `${uploadsDir}/${fileName}`;
-        
-        // Move file to upload path
-        await new Promise((resolve, reject) => {
-          file.mv(filePath, (err) => {
-            if (err) {
-              console.error('File upload error during signup:', err);
-              reject(err);
-            } else {
-              resolve();
-            }
+        try {
+          // Make sure the uploads directory exists
+          const publicDir = path.join(__dirname, '../public');
+          const uploadsDir = path.join(publicDir, 'uploads');
+          
+          console.log('Creating upload directories if needed:', publicDir, uploadsDir);
+          
+          if (!fs.existsSync(publicDir)) {
+            console.log('Creating public directory');
+            fs.mkdirSync(publicDir, { recursive: true });
+          }
+          
+          if (!fs.existsSync(uploadsDir)) {
+            console.log('Creating uploads directory');
+            fs.mkdirSync(uploadsDir, { recursive: true });
+          }
+          
+          // Check if directory is writable
+          try {
+            fs.accessSync(uploadsDir, fs.constants.W_OK);
+            console.log('Uploads directory is writable');
+          } catch (err) {
+            console.error('Uploads directory is not writable:', err);
+            throw new Error('Uploads directory is not writable');
+          }
+          
+          // Create custom filename
+          const fileName = `photo_${Date.now()}${path.parse(file.name).ext}`;
+          const filePath = path.join(uploadsDir, fileName);
+          
+          // Move file to upload path
+          await new Promise((resolve, reject) => {
+            file.mv(filePath, (err) => {
+              if (err) {
+                console.error('File upload error during signup:', err);
+                reject(err);
+              } else {
+                resolve();
+              }
+            });
           });
-        });
-        
-        // Set profile picture path
-        profilePicturePath = `/uploads/${fileName}`;
-        userData.profilePicture = profilePicturePath;
-        
-        // Add metadata
-        userData.profilePictureData = {
-          url: profilePicturePath,
-          uploadDate: new Date(),
-          size: file.size,
-          contentType: file.mimetype
-        };
+          
+          // Set profile picture path
+          profilePicturePath = `/uploads/${fileName}`;
+          userData.profilePicture = profilePicturePath;
+          
+          // Add metadata
+          userData.profilePictureData = {
+            url: profilePicturePath,
+            uploadDate: new Date(),
+            size: file.size,
+            contentType: file.mimetype
+          };
+        } catch (err) {
+          console.error('Error in file system storage:', err);
+          return res.status(500).json({
+            success: false,
+            message: 'Error saving profile picture: ' + err.message
+          });
+        }
       } else {
         // DATABASE STORAGE METHOD
         // Convert file data to base64 for storage in database
