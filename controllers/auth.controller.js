@@ -32,11 +32,15 @@ exports.signup = async (req, res) => {
 
     // Handle profile image if provided
     let profilePicturePath = null;
-    if (req.files && req.files.profileImage) {
-      const file = req.files.profileImage;
+    if (req.files && (req.files.profileImage || req.files.profilePicture)) {
+      // Support both parameter names for backward compatibility
+      const file = req.files.profilePicture || req.files.profileImage;
+      
+      console.log('Profile image received:', file.name, file.mimetype, file.size);
       
       // Check if image
       if (!file.mimetype.startsWith('image')) {
+        console.log('Invalid file mimetype:', file.mimetype);
         return res.status(400).json({
           success: false,
           message: 'Please upload an image file for profile picture'
