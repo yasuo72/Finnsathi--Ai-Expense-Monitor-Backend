@@ -21,5 +21,8 @@ ENV PORT=5000
 # Expose the port
 EXPOSE 5000
 
-# Start the application
-CMD ["npm", "start"]
+# Make sure stdout is unbuffered for proper logging
+ENV NODE_OPTIONS="--unhandled-rejections=strict"
+
+# Start the application with proper error handling
+CMD ["node", "-e", "try { console.log('Starting server...'); require('./server.js'); } catch (e) { console.error('Server startup error:', e); process.exit(1); }"]

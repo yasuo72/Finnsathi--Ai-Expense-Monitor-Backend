@@ -132,7 +132,32 @@ app.use((req, res) => {
 
 // Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+
+// Log startup information
+console.log('=== FinSathi API Server Starting ===');
+console.log('Current directory:', process.cwd());
+console.log('Node version:', process.version);
+console.log('Environment:', process.env.NODE_ENV || 'development');
+
+// Log MongoDB connection string (without password for security)
+const mongoUriSafe = (process.env.MONGODB_URI || '').replace(/:[^:@]*@/, ':****@');
+console.log('MongoDB URI:', mongoUriSafe);
+
+// Log all environment variables (except sensitive ones)
+console.log('Environment variables:', {
+  PORT: process.env.PORT,
+  NODE_ENV: process.env.NODE_ENV,
+  MONGODB_URI: mongoUriSafe ? 'Set' : 'Not set',
+  JWT_SECRET: process.env.JWT_SECRET ? 'Set' : 'Not set'
 });
+
+try {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log('Health check endpoint available at: /health');
+  });
+} catch (error) {
+  console.error('Failed to start server:', error);
+  process.exit(1);
+}
