@@ -59,6 +59,17 @@ app.use(express.json());
 // Set up static file serving for uploads with detailed logging
 app.use('/uploads', (req, res, next) => {
   console.log(`[FILE REQUEST] ${req.method} ${req.originalUrl}`);
+  const filePath = path.join(__dirname, 'public', req.originalUrl);
+  console.log(`[FILE REQUEST] Checking file existence: ${filePath}`);
+  try {
+    if (fs.existsSync(filePath)) {
+      console.log(`[FILE REQUEST] File exists: ${filePath}`);
+    } else {
+      console.log(`[FILE REQUEST] File does not exist: ${filePath}`);
+    }
+  } catch (err) {
+    console.error(`[FILE REQUEST] Error checking file: ${err.message}`);
+  }
   next();
 }, express.static(path.join(__dirname, 'public/uploads')));
 
