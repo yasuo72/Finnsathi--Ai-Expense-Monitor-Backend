@@ -1,0 +1,25 @@
+# Ignore development files
+node_modules
+npm-debug.log
+.DS_Store
+.vscode
+.idea
+*.log
+*.bak
+*.swp
+*.tmp
+
+# Ignore test files
+test
+tests
+__tests__
+coverage
+
+# Ignore git files
+.git
+.gitignore
+
+# Ignore documentation
+docs
+*.md
+!README.md
