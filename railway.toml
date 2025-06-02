@@ -1,7 +1,3 @@
-[build]
-builder = "NIXPACKS"
-buildCommand = "npm install --legacy-peer-deps"
-
 [deploy]
 startCommand = "npm start"
 healthcheckPath = "/"
