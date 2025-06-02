@@ -12,13 +12,24 @@ exports.signup = async (req, res) => {
   try {
     const { name, email, password, dob, mobile } = req.body;
 
-    // Check if user already exists
-    const userExists = await User.findOne({ email });
-    if (userExists) {
+    // Check if user already exists by email or mobile
+    const userExistsByEmail = await User.findOne({ email });
+    if (userExistsByEmail) {
       return res.status(400).json({
         success: false,
-        message: 'User already exists'
+        message: 'User with this email already exists'
       });
+    }
+    
+    // Check for duplicate mobile number if provided
+    if (mobile) {
+      const userExistsByMobile = await User.findOne({ mobile });
+      if (userExistsByMobile) {
+        return res.status(400).json({
+          success: false,
+          message: 'User with this mobile number already exists'
+        });
+      }
     }
 
     // Initialize user data
