@@ -318,20 +318,41 @@ exports.uploadProfilePicture = async (req, res) => {
       }
       
       // Create custom filename
-      const fileName = `photo_${req.user.id}_${Date.now()}${path.parse(file.name).ext}`;
-      const filePath = `${uploadsDir}/${fileName}`;
+      const fileName = `photo_${Date.now()}${path.parse(file.name).ext}`;
       
-      // Move file to upload path using a promise-based approach
+      // Create user directory if it doesn't exist
+      const userDir = path.join(uploadsDir, req.user.id.toString());
+      if (!fs.existsSync(userDir)) {
+        fs.mkdirSync(userDir, { recursive: true });
+      }
+      
+      // Define both paths - one in user directory and one directly in uploads
+      const userFilePath = path.join(userDir, fileName);
+      const directFilePath = path.join(uploadsDir, fileName);
+      
+      // Move file to user directory first
       await new Promise((resolve, reject) => {
-        file.mv(filePath, (err) => {
+        file.mv(userFilePath, (err) => {
           if (err) {
-            console.error('File upload error:', err);
+            console.error('File upload error (user directory):', err);
             reject(err);
           } else {
             resolve();
           }
         });
       });
+      
+      // Also save a copy directly in the uploads directory for direct access
+      try {
+        // Read the file we just saved
+        const fileData = fs.readFileSync(userFilePath);
+        // Write it to the direct access location
+        fs.writeFileSync(directFilePath, fileData);
+        console.log(`Profile picture also saved to direct access path: ${directFilePath}`);
+      } catch (copyErr) {
+        console.error('Error creating direct access copy for profile picture:', copyErr);
+        // Continue even if this fails - we still have the user-specific copy
+      }
       
       // Delete old profile picture if it's not the default
       if (user.profilePicture && user.profilePicture !== 'default-profile.jpg') {
@@ -341,13 +362,17 @@ exports.uploadProfilePicture = async (req, res) => {
         }
       }
       
-      // Update user profile with file path
-      const profilePicture = `/uploads/${fileName}`;
-      user.profilePicture = profilePicture;
+      // Update user profile with direct access file path
+      const directAccessPath = `/uploads/${fileName}`;
+      const userSpecificPath = `/uploads/${req.user.id}/${fileName}`;
+      
+      // Use the direct access path as the primary path
+      user.profilePicture = directAccessPath;
       
       // Update metadata
       user.profilePictureData = {
-        url: profilePicture,
+        url: directAccessPath,
+        userPath: userSpecificPath,  // Store the user-specific path as well
         uploadDate: new Date(),
         size: file.size,
         contentType: file.mimetype
