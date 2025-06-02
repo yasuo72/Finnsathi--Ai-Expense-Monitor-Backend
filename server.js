@@ -132,20 +132,7 @@ app.use((req, res) => {
 
 // Start server
 const PORT = process.env.PORT || 5000;
-const HOST = process.env.HOST || '0.0.0.0'; // Explicitly bind to all network interfaces
-
-// Log startup information
-console.log('Starting FinSathi API server...');
-console.log('Current directory:', process.cwd());
-console.log('Node version:', process.version);
-console.log('Environment:', process.env.NODE_ENV || 'development');
-
-// Log MongoDB connection string (without password)
-const mongoUriSafe = (process.env.MONGODB_URI || '').replace(/:[^:@]*@/, ':****@');
-console.log('MongoDB URI:', mongoUriSafe);
-
-app.listen(PORT, HOST, () => {
-  console.log(`Server running on ${HOST}:${PORT}`);
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log('Health check endpoint available at: /health');
 });
