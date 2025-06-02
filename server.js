@@ -59,6 +59,53 @@ app.use(express.json());
 // Set up static file serving for uploads
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
+// Additional route to handle direct file access without user ID in path
+app.get('/uploads/:filename', (req, res) => {
+  const filename = req.params.filename;
+  // Search for the file in all user directories
+  const uploadsDir = path.join(__dirname, 'public/uploads');
+  
+  // Read all user directories
+  fs.readdir(uploadsDir, (err, userDirs) => {
+    if (err) {
+      console.error('Error reading uploads directory:', err);
+      return res.status(404).send('File not found');
+    }
+    
+    // Try to find the file in each user directory
+    let fileFound = false;
+    
+    // Function to check each directory
+    const checkNextDir = (index) => {
+      if (index >= userDirs.length) {
+        // We've checked all directories and didn't find the file
+        if (!fileFound) {
+          return res.status(404).send('File not found');
+        }
+        return;
+      }
+      
+      const userDir = userDirs[index];
+      const filePath = path.join(uploadsDir, userDir, filename);
+      
+      // Check if file exists in this user directory
+      fs.access(filePath, fs.constants.F_OK, (err) => {
+        if (!err) {
+          // File found, serve it
+          fileFound = true;
+          return res.sendFile(filePath);
+        } else {
+          // Try next directory
+          checkNextDir(index + 1);
+        }
+      });
+    };
+    
+    // Start checking directories
+    checkNextDir(0);
+  });
+});
+
 // Create uploads directory if it doesn't exist
 const fs = require('fs');
 const uploadDir = path.join(__dirname, 'public/uploads');
