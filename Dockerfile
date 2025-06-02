@@ -2,23 +2,21 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Install dependencies first (for better caching)
-COPY package*.json ./
+# Install only essential dependencies for diagnosis
+COPY package.json ./
 
-RUN npm install --legacy-peer-deps
+RUN npm install --no-package-lock express dotenv
 
-# Copy the rest of the application
-COPY . .
+# Copy only the minimal server and environment files
+COPY minimal-server.js ./
+COPY .env* ./
 
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=5000
 
-# Create necessary directories
-RUN mkdir -p ./public/uploads
-
 # Expose the port the app runs on
 EXPOSE 5000
 
-# Start the application with proper error logging
-CMD ["node", "-e", "try { require('./server.js') } catch (e) { console.error('Server failed to start:', e); process.exit(1); }"]
+# Start the minimal diagnostic server
+CMD ["node", "minimal-server.js"]
