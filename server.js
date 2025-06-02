@@ -56,53 +56,100 @@ app.use(fileUpload({
 // Regular express.json() parser
 app.use(express.json());
 
-// Set up static file serving for uploads
-app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+// Set up static file serving for uploads with detailed logging
+app.use('/uploads', (req, res, next) => {
+  console.log(`[FILE REQUEST] ${req.method} ${req.originalUrl}`);
+  next();
+}, express.static(path.join(__dirname, 'public/uploads')));
 
-// Additional route to handle direct file access without user ID in path
+// Enhanced route to handle direct file access without user ID in path
 app.get('/uploads/:filename', (req, res) => {
   const filename = req.params.filename;
-  // Search for the file in all user directories
-  const uploadsDir = path.join(__dirname, 'public/uploads');
+  console.log(`[FILE ACCESS] Attempting to find file: ${filename}`);
   
-  // Read all user directories
-  fs.readdir(uploadsDir, (err, userDirs) => {
-    if (err) {
-      console.error('Error reading uploads directory:', err);
-      return res.status(404).send('File not found');
+  // Search for the file in all user directories and directly in uploads
+  const uploadsDir = path.join(__dirname, 'public/uploads');
+  console.log(`[FILE ACCESS] Uploads directory: ${uploadsDir}`);
+  
+  // First check if file exists directly in the uploads directory
+  const directFilePath = path.join(uploadsDir, filename);
+  fs.access(directFilePath, fs.constants.F_OK, (directErr) => {
+    if (!directErr) {
+      console.log(`[FILE ACCESS] Found file directly in uploads: ${directFilePath}`);
+      return res.sendFile(directFilePath);
     }
     
-    // Try to find the file in each user directory
-    let fileFound = false;
+    console.log(`[FILE ACCESS] File not found directly in uploads, checking user directories`);
     
-    // Function to check each directory
-    const checkNextDir = (index) => {
-      if (index >= userDirs.length) {
-        // We've checked all directories and didn't find the file
-        if (!fileFound) {
-          return res.status(404).send('File not found');
-        }
-        return;
+    // Read all user directories
+    fs.readdir(uploadsDir, (err, items) => {
+      if (err) {
+        console.error('[FILE ACCESS] Error reading uploads directory:', err);
+        return res.status(404).json({
+          error: 'File not found',
+          details: 'Error reading uploads directory',
+          path: req.originalUrl
+        });
       }
       
-      const userDir = userDirs[index];
-      const filePath = path.join(uploadsDir, userDir, filename);
+      console.log(`[FILE ACCESS] Found ${items.length} items in uploads directory`);
       
-      // Check if file exists in this user directory
-      fs.access(filePath, fs.constants.F_OK, (err) => {
-        if (!err) {
-          // File found, serve it
-          fileFound = true;
-          return res.sendFile(filePath);
-        } else {
-          // Try next directory
-          checkNextDir(index + 1);
+      // Filter to only include directories
+      const userDirs = [];
+      for (const item of items) {
+        const itemPath = path.join(uploadsDir, item);
+        try {
+          const stats = fs.statSync(itemPath);
+          if (stats.isDirectory()) {
+            userDirs.push(item);
+          }
+        } catch (statErr) {
+          console.error(`[FILE ACCESS] Error checking if ${item} is a directory:`, statErr);
         }
-      });
-    };
-    
-    // Start checking directories
-    checkNextDir(0);
+      }
+      
+      console.log(`[FILE ACCESS] Found ${userDirs.length} user directories`);
+      
+      // Try to find the file in each user directory
+      let fileFound = false;
+      
+      // Function to check each directory
+      const checkNextDir = (index) => {
+        if (index >= userDirs.length) {
+          // We've checked all directories and didn't find the file
+          if (!fileFound) {
+            console.error(`[FILE ACCESS] File ${filename} not found in any user directory`);
+            return res.status(404).json({
+              error: 'File not found',
+              details: 'Checked all user directories',
+              path: req.originalUrl
+            });
+          }
+          return;
+        }
+        
+        const userDir = userDirs[index];
+        const filePath = path.join(uploadsDir, userDir, filename);
+        
+        console.log(`[FILE ACCESS] Checking for file in directory: ${userDir}`);
+        
+        // Check if file exists in this user directory
+        fs.access(filePath, fs.constants.F_OK, (err) => {
+          if (!err) {
+            // File found, serve it
+            console.log(`[FILE ACCESS] Found file at: ${filePath}`);
+            fileFound = true;
+            return res.sendFile(filePath);
+          } else {
+            // Try next directory
+            checkNextDir(index + 1);
+          }
+        });
+      };
+      
+      // Start checking directories
+      checkNextDir(0);
+    });
   });
 });
 
