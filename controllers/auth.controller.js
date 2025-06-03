@@ -424,6 +424,107 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
+// @desc    Authenticate with Google
+// @route   POST /api/auth/google
+// @access  Public
+exports.googleAuth = async (req, res) => {
+  try {
+    console.log('Google auth request received:', JSON.stringify(req.body, null, 2));
+    const { idToken, accessToken, email, name, photoUrl } = req.body;
+
+    if (!idToken || !email || !name) {
+      console.log('Missing required Google auth fields:', { 
+        hasIdToken: !!idToken, 
+        hasEmail: !!email, 
+        hasName: !!name 
+      });
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide all required Google authentication data'
+      });
+    }
+    
+    // Log token info (first 10 chars only for security)
+    console.log('Google auth tokens received:', { 
+      idToken: idToken.substring(0, 10) + '...', 
+      accessToken: accessToken ? (accessToken.substring(0, 10) + '...') : 'not provided' 
+    });
+
+    // Check if user exists
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      // Create new user if not exists
+      user = await User.create({
+        name,
+        email,
+        // Generate a random secure password for Google users
+        password: Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8),
+        profilePicture: photoUrl || null,
+        authProvider: 'google',
+        googleId: email // Using email as googleId for simplicity
+      });
+
+      console.log(`New user created via Google Sign-In: ${email}`);
+    } else {
+      // Update existing user's Google information
+      user.name = name;
+      user.profilePicture = photoUrl || user.profilePicture;
+      user.authProvider = 'google';
+      user.googleId = email; // Using email as googleId for simplicity
+      await user.save();
+
+      console.log(`Existing user authenticated via Google: ${email}`);
+    }
+
+    // Generate token
+    const token = user.getSignedJwtToken();
+
+    // Send login notification if enabled
+    try {
+      // Get device and location info from request headers or defaults
+      const userAgent = req.headers['user-agent'] || 'Unknown device';
+      const ipAddress = req.headers['x-forwarded-for'] || 
+                      req.connection.remoteAddress || 
+                      'Unknown location';
+      
+      // Send notification asynchronously (don't wait for it)
+      NotificationService.sendSecurityNotification(
+        user._id,
+        'login',
+        { device: userAgent, location: ipAddress, provider: 'Google' }
+      ).catch(err => console.error('Error sending Google login notification:', err));
+    } catch (notificationError) {
+      // Log but don't fail the login process
+      console.error('Error sending Google login notification:', notificationError);
+    }
+
+    // Create response with all necessary data
+    const response = {
+      success: true,
+      message: 'Google authentication successful',
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        dob: user.dob,
+        mobile: user.mobile,
+        profilePicture: user.profilePicture
+      }
+    };
+    
+    console.log('Google auth successful for:', email);
+    res.status(200).json(response);
+  } catch (error) {
+    console.error('Google authentication error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during Google authentication'
+    });
+  }
+};
+
 // @desc    Get current user profile
 // @route   GET /api/auth/me
 // @access  Private
