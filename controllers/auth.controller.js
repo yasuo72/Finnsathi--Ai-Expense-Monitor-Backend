@@ -432,15 +432,17 @@ exports.googleAuth = async (req, res) => {
     console.log('Google auth request received:', JSON.stringify(req.body, null, 2));
     const { idToken, accessToken, email, name, photoUrl } = req.body;
 
-    if (!idToken || !email || !name) {
+    // Check if we have either idToken or accessToken, plus required user info
+    if ((!idToken && !accessToken) || !email || !name) {
       console.log('Missing required Google auth fields:', { 
         hasIdToken: !!idToken, 
+        hasAccessToken: !!accessToken,
         hasEmail: !!email, 
         hasName: !!name 
       });
       return res.status(400).json({
         success: false,
-        message: 'Please provide all required Google authentication data'
+        message: 'Please provide either idToken or accessToken, plus email and name'
       });
     }
     
