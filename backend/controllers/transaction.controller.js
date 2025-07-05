@@ -218,11 +218,33 @@ exports.deleteTransaction = async (req, res) => {
       });
     }
     
-    await transaction.remove();
+    // Use deleteOne instead of deprecated remove() method
+    await Transaction.deleteOne({ _id: req.params.id });
+    
+    // If this is an expense and affects a budget, update the budget
+    if (transaction.type === 'expense' && transaction.category) {
+      try {
+        // Find relevant budget for this category
+        const budget = await Budget.findOne({
+          user: req.user.id,
+          category: transaction.category
+        });
+        
+        if (budget) {
+          // Update budget spent amount
+          budget.spent = Math.max(0, budget.spent - transaction.amount);
+          await budget.save();
+        }
+      } catch (budgetError) {
+        console.error('Error updating budget after transaction deletion:', budgetError);
+        // Don't fail the transaction deletion
+      }
+    }
     
     res.status(200).json({
       success: true,
-      data: {}
+      data: {},
+      message: 'Transaction deleted successfully'
     });
   } catch (error) {
     console.error(error);

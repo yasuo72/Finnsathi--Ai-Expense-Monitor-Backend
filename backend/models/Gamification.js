@@ -93,9 +93,17 @@ const GamificationSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  longestStreak: {
+    type: Number,
+    default: 0
+  },
   lastActive: {
     type: Date,
     default: Date.now
+  },
+  coins: {
+    type: Number,
+    default: 0
   },
   financialHealthScore: {
     type: Number,
