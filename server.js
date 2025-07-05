@@ -208,6 +208,16 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/predictions', predictionRoutes);
 
+// Health check endpoint for Railway
+app.get('/health', (req, res) => {
+  console.log('Health check requested');
+  res.status(200).json({
+    status: 'ok',
+    message: 'Server is running',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Root route
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to FinSathi API' });
