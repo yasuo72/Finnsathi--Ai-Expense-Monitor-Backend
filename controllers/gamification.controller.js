@@ -127,10 +127,17 @@ exports.completeChallenge = async (req, res) => {
       });
     }
     
-    // Find the challenge
-    const challenge = gamification.challenges.id(req.params.id);
+    // Find the challenge - try both MongoDB ID and string ID matching
+    let challenge = gamification.challenges.id(req.params.id);
+    
+    // If not found by MongoDB ID, try to find by string ID
+    if (!challenge) {
+      challenge = gamification.challenges.find(c => c.id === req.params.id);
+    }
     
     if (!challenge) {
+      console.log(`Challenge not found: ${req.params.id}`);
+      console.log(`Available challenges: ${gamification.challenges.map(c => c.id).join(', ')}`);
       return res.status(404).json({
         success: false,
         message: 'Challenge not found'
@@ -554,3 +561,168 @@ async function checkAchievements(userId, gamification) {
     console.error('Error checking achievements:', error);
   }
 }
+
+// @desc    Update user gamification data
+// @route   PUT /api/gamification
+// @access  Private
+exports.updateGamificationData = async (req, res) => {
+  try {
+    let gamification = await Gamification.findOne({ user: req.user.id });
+    
+    if (!gamification) {
+      return res.status(404).json({
+        success: false,
+        message: 'Gamification data not found'
+      });
+    }
+    
+    // Update fields from request body
+    if (req.body.streak !== undefined) gamification.streak = req.body.streak;
+    if (req.body.longestStreak !== undefined) {
+      // Only update if the new streak is longer
+      if (req.body.longestStreak > gamification.longestStreak) {
+        gamification.longestStreak = req.body.longestStreak;
+      }
+    }
+    if (req.body.lastActivityDate !== undefined) gamification.lastActive = new Date(req.body.lastActivityDate);
+    if (req.body.points !== undefined) gamification.points = req.body.points;
+    if (req.body.level !== undefined) gamification.level = req.body.level;
+    if (req.body.financialHealthScore !== undefined) gamification.financialHealthScore = req.body.financialHealthScore;
+    
+    // Save the updated gamification data
+    await gamification.save();
+    
+    res.status(200).json({
+      success: true,
+      data: gamification
+    });
+  } catch (error) {
+    console.error('Error updating gamification data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Update challenges
+// @route   PUT /api/gamification/challenges
+// @access  Private
+exports.updateChallenges = async (req, res) => {
+  try {
+    let gamification = await Gamification.findOne({ user: req.user.id });
+    
+    if (!gamification) {
+      return res.status(404).json({
+        success: false,
+        message: 'Gamification data not found'
+      });
+    }
+    
+    // Update challenges if provided
+    if (req.body.challenges && Array.isArray(req.body.challenges)) {
+      console.log(`Received ${req.body.challenges.length} challenges to update`);
+      
+      // For each challenge in the request, update or add it
+      req.body.challenges.forEach(incomingChallenge => {
+        // Try to find an existing challenge with the same ID
+        let existingChallenge = gamification.challenges.id(incomingChallenge.id);
+        
+        // If not found by MongoDB ID, try to find by string ID
+        if (!existingChallenge && incomingChallenge.id) {
+          existingChallenge = gamification.challenges.find(c => c.id === incomingChallenge.id);
+        }
+        
+        if (existingChallenge) {
+          console.log(`Updating existing challenge: ${existingChallenge.id}`);
+          // Update existing challenge
+          Object.keys(incomingChallenge).forEach(key => {
+            existingChallenge[key] = incomingChallenge[key];
+          });
+        } else {
+          console.log(`Adding new challenge: ${incomingChallenge.id || 'unknown id'}`);
+          // Add new challenge
+          gamification.challenges.push(incomingChallenge);
+        }
+      });
+    }
+    
+    // Save the updated gamification data
+    await gamification.save();
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        challenges: gamification.challenges
+      }
+    });
+  } catch (error) {
+    console.error('Error updating challenges:', error);
+    console.error('Request body:', JSON.stringify(req.body, null, 2));
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'production' ? null : error.stack
+    });
+  }
+};
+
+// @desc    Update badges/achievements
+// @route   PUT /api/gamification/badges
+// @access  Private
+exports.updateBadges = async (req, res) => {
+  try {
+    let gamification = await Gamification.findOne({ user: req.user.id });
+    
+    if (!gamification) {
+      return res.status(404).json({
+        success: false,
+        message: 'Gamification data not found'
+      });
+    }
+    
+    // Update badges/achievements based on the request
+    if (req.body.badges && Array.isArray(req.body.badges)) {
+      // For each badge ID, find the corresponding achievement and mark it as unlocked
+      for (const badgeId of req.body.badges) {
+        const achievement = gamification.achievements.find(a => a._id.toString() === badgeId || a.id === badgeId);
+        if (achievement && !achievement.isUnlocked) {
+          achievement.isUnlocked = true;
+          achievement.unlockedDate = new Date();
+          
+          // Award points for unlocking this achievement
+          gamification.points += achievement.points || 10;
+          
+          console.log(`User ${req.user.id} unlocked achievement: ${achievement.title}`);
+        }
+      }
+      
+      // Check if level up is needed after adding points
+      const oldLevel = gamification.level;
+      gamification.level = Math.floor(gamification.points / 100) + 1;
+      
+      if (gamification.level > oldLevel) {
+        console.log(`User ${req.user.id} leveled up from ${oldLevel} to ${gamification.level}`);
+      }
+    }
+    
+    // Save the updated gamification data
+    await gamification.save();
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        achievements: gamification.achievements,
+        level: gamification.level,
+        points: gamification.points
+      }
+    });
+  } catch (error) {
+    console.error('Error updating badges:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};

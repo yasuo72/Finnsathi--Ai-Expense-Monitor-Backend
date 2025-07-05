@@ -9,7 +9,9 @@ const {
   deleteNotification,
   deleteReadNotifications,
   getNotificationSettings,
-  updateNotificationSettings
+  updateNotificationSettings,
+  syncNotifications,
+  getUnreadCount
 } = require('../controllers/notification.controller');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -20,6 +22,8 @@ router.use(protect);
 router.get('/', getNotifications);
 router.get('/settings', getNotificationSettings);
 router.put('/settings', updateNotificationSettings);
+router.post('/sync', syncNotifications);
+router.get('/unread-count', getUnreadCount);
 router.get('/:id', getNotification);
 router.patch('/:id/read', markAsRead);
 router.patch('/read-all', markAllAsRead);

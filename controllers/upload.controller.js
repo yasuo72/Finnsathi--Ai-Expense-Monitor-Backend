@@ -29,7 +29,10 @@ exports.uploadFile = async (req, res) => {
     const fileName = `${Date.now()}-${randomString}${fileExtension}`;
     const filePath = path.join(userDir, fileName);
     
-    // Move file to the uploads directory
+    // Also save a copy directly in the uploads directory for direct access
+    const directFilePath = path.join(__dirname, '../public/uploads', fileName);
+    
+    // Move file to the user-specific directory
     file.mv(filePath, async (err) => {
       if (err) {
         console.error('File upload error:', err);
@@ -40,12 +43,27 @@ exports.uploadFile = async (req, res) => {
         });
       }
       
-      // Return the relative path for frontend use
-      const relativePath = `/uploads/${userId}/${fileName}`;
+      // Also save a copy directly in the uploads directory for direct access
+      // First, create a copy of the file
+      try {
+        // Read the file we just saved
+        const fileData = fs.readFileSync(filePath);
+        // Write it to the direct access location
+        fs.writeFileSync(directFilePath, fileData);
+        console.log(`File also saved to direct access path: ${directFilePath}`);
+      } catch (copyErr) {
+        console.error('Error creating direct access copy:', copyErr);
+        // Continue even if this fails - we still have the user-specific copy
+      }
+      
+      // Return both paths for frontend use
+      const userSpecificPath = `/uploads/${userId}/${fileName}`;
+      const directAccessPath = `/uploads/${fileName}`;
       
       res.status(200).json({
         success: true,
-        filePath: relativePath,
+        filePath: directAccessPath, // Use the direct path as primary
+        userFilePath: userSpecificPath, // Also provide the user-specific path
         message: 'File uploaded successfully'
       });
     });
