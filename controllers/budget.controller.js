@@ -234,6 +234,60 @@ exports.getBudgetStatus = async (req, res) => {
 // @desc    Get all budgets with spending data
 // @route   GET /api/budgets/stats
 // @access  Private
+// @desc    Get budget alerts when spending crosses threshold
+// @route   GET /api/budgets/alerts?threshold=80
+// @access  Private
+exports.getBudgetAlerts = async (req, res) => {
+  try {
+    const threshold = parseFloat(req.query.threshold) || 80; // percent
+
+    // Fetch budgets and their current spending via aggregation similar to getBudgetStats
+    const budgets = await Budget.find({ user: req.user.id });
+    if (budgets.length === 0) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    // Get all expense transactions for user
+    const transactions = await Transaction.find({ user: req.user.id, type: 'expense' });
+
+    const alertBudgets = [];
+
+    for (const budget of budgets) {
+      const relatedTxns = transactions.filter(t => {
+        return t.category === budget.category && t.date >= budget.startDate && t.date <= budget.endDate;
+      });
+      const spent = relatedTxns.reduce((sum, t) => sum + t.amount, 0);
+      const percentUsed = budget.limit > 0 ? (spent / budget.limit) * 100 : 0;
+      const isExceeded = spent > budget.limit;
+
+      if (isExceeded || percentUsed >= threshold) {
+        alertBudgets.push({
+          _id: budget._id,
+          title: budget.title,
+          category: budget.category,
+          limit: budget.limit,
+          spent,
+          percentUsed,
+          isExceeded,
+          startDate: budget.startDate,
+          endDate: budget.endDate,
+        });
+      }
+
+      // persist spent if changed
+      if (budget.spent !== spent) {
+        budget.spent = spent;
+        await budget.save();
+      }
+    }
+
+    res.status(200).json({ success: true, count: alertBudgets.length, data: alertBudgets });
+  } catch (error) {
+    console.error('Error in getBudgetAlerts:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
 exports.getBudgetStats = async (req, res) => {
   try {
     // Get all budgets for the user

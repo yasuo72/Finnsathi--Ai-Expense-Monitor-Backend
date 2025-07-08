@@ -23,6 +23,7 @@ router.route('/:id')
   .put(updateBudget)
   .delete(deleteBudget);
 
+router.get('/alerts', getBudgetAlerts);
 router.get('/stats', getBudgetStats);
 router.get('/:id/status', getBudgetStatus);
 
