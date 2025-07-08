@@ -312,7 +312,8 @@ exports.uploadProfilePicture = async (req, res) => {
     if (useFileSystem) {
       // FILESYSTEM STORAGE METHOD
       // Make sure the uploads directory exists
-      const uploadsDir = './public/uploads';
+      // Use absolute path so it matches Express static middleware (server.js)
+      const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
       if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }
@@ -356,7 +357,7 @@ exports.uploadProfilePicture = async (req, res) => {
       
       // Delete old profile picture if it's not the default
       if (user.profilePicture && user.profilePicture !== 'default-profile.jpg') {
-        const oldFilePath = `./public${user.profilePicture}`;
+        const oldFilePath = path.join(__dirname, '..', 'public', user.profilePicture.replace('/uploads/', 'uploads/'));
         if (fs.existsSync(oldFilePath)) {
           fs.unlinkSync(oldFilePath);
         }
