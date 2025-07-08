@@ -30,6 +30,28 @@ exports.analyzeExpenses = async (req, res, next) => {
  * POST /api/gemini/chat
  * Body: { prompt: string }
  */
+/**
+ * POST /api/gemini/prompts
+ * Body: { screen: string, stats: object }
+ * Responds: { prompts: string[] }
+ */
+exports.generatePrompts = async (req, res, next) => {
+  try {
+    const { screen, stats } = req.body;
+    if (!screen || !stats) {
+      return res.status(400).json({ message: 'screen and stats are required' });
+    }
+
+    const prompt = `Generate 6 concise, helpful questions a user might ask an AI assistant on the topic of "${screen}". Base the suggestions on this finance snapshot JSON: ${JSON.stringify(stats)}. Return each question on a new line without numbering.`;
+    const text = await generateContent(prompt);
+    // split by newline and filter empty lines
+    const prompts = text.split(/\r?\n/).map(p => p.trim()).filter(Boolean).slice(0, 6);
+    res.json({ prompts });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.chat = async (req, res, next) => {
   try {
     const { prompt } = req.body;
