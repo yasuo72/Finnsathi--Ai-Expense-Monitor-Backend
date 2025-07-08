@@ -7,6 +7,8 @@ const axios = require('axios');
  */
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+// Allow overriding the model via env var so we can switch without code changes
+const GEMINI_MODEL_ID = process.env.GEMINI_MODEL_ID || 'gemini-2.0-flash';
 
 if (!GEMINI_API_KEY) {
   // Fail fast on startup so that mis-configuration is obvious in the logs
@@ -14,7 +16,7 @@ if (!GEMINI_API_KEY) {
 }
 
 /**
- * Send a prompt to Gemini-Pro and return plain-text response.
+ * Send a prompt to Gemini and return plain-text response.
  * @param {string} prompt – The text prompt to send.
  * @returns {Promise<string>} Gemini response text (may be empty on error).
  */
@@ -23,7 +25,8 @@ async function generateContent(prompt) {
     return 'Gemini API key not configured on the server.';
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`;
+  // v1beta endpoint is still used for public key access; only the model ID changes.
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL_ID}:generateContent?key=${GEMINI_API_KEY}`;
 
   try {
     const { data } = await axios.post(url, {
