@@ -22,6 +22,7 @@ const notificationRoutes = require('./routes/notification.routes');
 const chatbotRoutes = require('./routes/chatbot.routes');
 const predictionRoutes = require('./routes/prediction.routes');
 const uploadRoutes = require('./routes/upload.routes');
+const geminiRoutes = require('./routes/gemini.routes');
 
 // Initialize Express app
 const app = express();
@@ -207,6 +208,7 @@ app.use('/api/statistics', statisticsRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/predictions', predictionRoutes);
+app.use('/api/gemini', geminiRoutes);
 
 // Health check endpoint for Railway
 app.get('/health', (req, res) => {
