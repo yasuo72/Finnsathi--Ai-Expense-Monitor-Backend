@@ -23,7 +23,7 @@ async function generateContent(prompt) {
     return 'Gemini API key not configured on the server.';
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`;
+  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`;
 
   try {
     const { data } = await axios.post(url, {
