@@ -623,8 +623,37 @@ exports.updateChallenges = async (req, res) => {
     if (req.body.challenges && Array.isArray(req.body.challenges)) {
       console.log(`Received ${req.body.challenges.length} challenges to update`);
       
-      // For each challenge in the request, update or add it
+      // For each challenge in the request, sanitize then update or add it
       req.body.challenges.forEach(incomingChallenge => {
+        // Sanitize incoming challenge to avoid CastError / validation errors
+        // 1. Remove invalid _id (empty string or not a valid 24-char hex) so Mongoose can generate one
+        if (typeof incomingChallenge._id === 'string') {
+          const idStr = incomingChallenge._id.trim();
+          if (!idStr || !/^[0-9a-fA-F]{24}$/.test(idStr)) {
+            delete incomingChallenge._id;
+          }
+        }
+
+        // 2. Fix wrongly mapped category/type values coming from older clients
+        const validCategories = ['savings', 'spending', 'budgeting', 'tracking'];
+        const validTypes = ['daily', 'weekly', 'monthly', 'one-time'];
+
+        // If category contains a type value (e.g. "daily"), swap them
+        if (incomingChallenge.category && !validCategories.includes(incomingChallenge.category)) {
+          // If it's actually a type value, move it
+          if (validTypes.includes(incomingChallenge.category)) {
+            incomingChallenge.type = incomingChallenge.category;
+          }
+          // Set a safe default category if none provided or invalid
+          incomingChallenge.category = incomingChallenge.category && validCategories.includes(incomingChallenge.category)
+            ? incomingChallenge.category
+            : 'tracking';
+        }
+
+        // Ensure type is valid, otherwise default to 'daily'
+        if (!incomingChallenge.type || !validTypes.includes(incomingChallenge.type)) {
+          incomingChallenge.type = 'daily';
+        }
         // Try to find an existing challenge with the same ID
         let existingChallenge = gamification.challenges.id(incomingChallenge.id);
         
