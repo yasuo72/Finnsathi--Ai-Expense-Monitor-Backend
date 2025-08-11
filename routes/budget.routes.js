@@ -7,7 +7,8 @@ const {
   updateBudget,
   deleteBudget,
   getBudgetStatus,
-  getBudgetStats
+  getBudgetStats,
+  getBudgetAlerts
 } = require('../controllers/budget.controller');
 const { protect } = require('../middleware/auth');
 
