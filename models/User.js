@@ -209,10 +209,10 @@ UserSchema.pre('save', async function(next) {
 });
 
 // Sign JWT and return
-UserSchema.methods.getSignedJwtToken = function() {
-  return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE
-  });
+// Sign JWT and return with configurable expiry (e.g. '30d' or seconds)
+UserSchema.methods.getSignedJwtToken = function () {
+  const expiresIn = process.env.JWT_EXPIRES_IN || process.env.JWT_EXPIRE || '1d'; // fallback 1 day
+  return jwt.sign({ id: this._id }, process.env.JWT_SECRET, { expiresIn });
 };
 
 // Match user entered password to hashed password in database
