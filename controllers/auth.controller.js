@@ -613,9 +613,8 @@ exports.resetPassword = async (req, res) => {
       }
     }
 
-    // Update password
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(newPassword, salt);
+    // Update password (pre-save hook will hash it automatically)
+    user.password = newPassword;
     await user.save();
 
     // Delete all OTPs for this user after successful reset
