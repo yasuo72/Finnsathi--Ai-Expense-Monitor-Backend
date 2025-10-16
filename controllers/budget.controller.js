@@ -1,6 +1,7 @@
 const Budget = require('../models/Budget');
 const Transaction = require('../models/Transaction');
 const mongoose = require('mongoose');
+const GamificationService = require('../services/gamification.service');
 
 // @desc    Get all budgets
 // @route   GET /api/budgets
@@ -62,6 +63,13 @@ exports.createBudget = async (req, res) => {
     req.body.user = req.user.id;
     
     const budget = await Budget.create(req.body);
+    
+    // Update gamification (XP, achievements)
+    try {
+      await GamificationService.updateAfterBudget(req.user.id, budget);
+    } catch (gamificationError) {
+      console.error('Error updating gamification:', gamificationError);
+    }
     
     res.status(201).json({
       success: true,

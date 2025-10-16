@@ -2,6 +2,7 @@ const Gamification = require('../models/Gamification');
 const Transaction = require('../models/Transaction');
 const Budget = require('../models/Budget');
 const SavingsGoal = require('../models/SavingsGoal');
+const ChallengeAssignmentService = require('../services/challengeAssignment.service');
 
 // @desc    Get user gamification data
 // @route   GET /api/gamification
@@ -12,16 +13,38 @@ exports.getGamificationData = async (req, res) => {
     
     // If gamification data doesn't exist, create it with default values
     if (!gamification) {
+      const initialChallenges = await ChallengeAssignmentService.assignDailyChallenges(
+        req.user.id,
+        null
+      );
+      
       gamification = await Gamification.create({
         user: req.user.id,
         points: 0,
         level: 1,
         streak: 0,
+        coins: 0,
         financialHealthScore: 50,
-        challenges: generateDefaultChallenges(),
+        challenges: initialChallenges,
         achievements: generateDefaultAchievements()
       });
     }
+    
+    // Check if user needs new challenges (daily refresh)
+    if (ChallengeAssignmentService.needsChallengeRefresh(gamification)) {
+      const newChallenges = await ChallengeAssignmentService.assignDailyChallenges(
+        req.user.id,
+        gamification
+      );
+      
+      // Keep completed challenges, add new ones
+      const completedChallenges = gamification.challenges.filter(c => c.isCompleted);
+      gamification.challenges = [...completedChallenges, ...newChallenges];
+      await gamification.save();
+    }
+    
+    // Auto-check challenge completion
+    await ChallengeAssignmentService.autoCheckChallenges(req.user.id, gamification);
     
     // Check and update streak
     await updateStreak(gamification);
@@ -233,7 +256,9 @@ function generateDefaultChallenges() {
       category: 'tracking',
       isCompleted: false,
       expiryDate: tomorrow,
-      icon: 'receipt'
+      icon: 'receipt',
+      currentValue: 0,
+      targetValue: 3
     },
     {
       title: 'Save Some Money',
@@ -243,7 +268,9 @@ function generateDefaultChallenges() {
       category: 'savings',
       isCompleted: false,
       expiryDate: tomorrow,
-      icon: 'savings'
+      icon: 'savings',
+      currentValue: 0,
+      targetValue: 1
     },
     {
       title: 'Budget Master',
@@ -253,7 +280,9 @@ function generateDefaultChallenges() {
       category: 'budgeting',
       isCompleted: false,
       expiryDate: tomorrow,
-      icon: 'account_balance'
+      icon: 'account_balance',
+      currentValue: 0,
+      targetValue: 1
     }
   ];
 }

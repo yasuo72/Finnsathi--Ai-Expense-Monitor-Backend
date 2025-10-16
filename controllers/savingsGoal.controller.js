@@ -1,6 +1,7 @@
 const SavingsGoal = require('../models/SavingsGoal');
 const Transaction = require('../models/Transaction');
 const mongoose = require('mongoose');
+const GamificationService = require('../services/gamification.service');
 
 // @desc    Get all savings goals
 // @route   GET /api/savings-goals
@@ -62,6 +63,13 @@ exports.createSavingsGoal = async (req, res) => {
     req.body.user = req.user.id;
     
     const savingsGoal = await SavingsGoal.create(req.body);
+    
+    // Update gamification (XP, achievements, challenges)
+    try {
+      await GamificationService.updateAfterSavingsGoal(req.user.id, savingsGoal);
+    } catch (gamificationError) {
+      console.error('Error updating gamification:', gamificationError);
+    }
     
     res.status(201).json({
       success: true,
@@ -218,6 +226,13 @@ exports.addToSavingsGoal = async (req, res) => {
     });
     
     await savingsGoal.save();
+    
+    // Update gamification (XP, challenges)
+    try {
+      await GamificationService.updateAfterSavingsGoal(req.user.id, savingsGoal);
+    } catch (gamificationError) {
+      console.error('Error updating gamification:', gamificationError);
+    }
     
     // Create a transaction record if requested
     if (createTransaction) {

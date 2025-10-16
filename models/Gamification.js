@@ -36,6 +36,14 @@ const ChallengeSchema = new mongoose.Schema({
   icon: {
     type: String,
     default: 'star'
+  },
+  currentValue: {
+    type: Number,
+    default: 0
+  },
+  targetValue: {
+    type: Number,
+    default: 1
   }
 });
 

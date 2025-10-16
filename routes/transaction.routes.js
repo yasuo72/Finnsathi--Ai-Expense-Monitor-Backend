@@ -10,6 +10,7 @@ const {
   getTransactionTrends
 } = require('../controllers/transaction.controller');
 const { protect } = require('../middleware/auth');
+const { updateAfterTransaction } = require('../middleware/gamification.middleware');
 
 // All routes are protected
 router.use(protect);
