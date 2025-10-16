@@ -1,7 +1,11 @@
 const User = require('../models/User');
+const Otp = require('../models/Otp');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const NotificationService = require('../services/notification.service');
+const emailService = require('../services/email.service');
+const smsService = require('../services/sms.service');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
@@ -342,14 +346,57 @@ exports.forgotPassword = async (req, res) => {
       });
     }
 
-    // In a real application, send OTP via email or SMS
-    // For demo, just return success
-    res.status(200).json({
-      success: true,
-      message: 'OTP sent successfully'
+    // Delete any existing unverified OTPs for this user
+    await Otp.deleteMany({
+      user: user._id,
+      type: 'password_reset',
+      verified: false
     });
+
+    // Generate 4-digit OTP
+    const otp = crypto.randomInt(1000, 9999).toString();
+
+    // Save OTP to database
+    const otpDoc = await Otp.create({
+      user: user._id,
+      email: email || null,
+      mobile: mobile || null,
+      otp: otp,
+      type: 'password_reset',
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000) // 5 minutes
+    });
+
+    console.log(`📧 Generated OTP for ${email || mobile}: ${otp}`);
+
+    // Send OTP via email or SMS
+    try {
+      if (email) {
+        await emailService.sendOtpEmail(email, otp, user.name);
+        console.log('✅ OTP email sent successfully');
+      } else if (mobile) {
+        await smsService.sendOtpSms(mobile, otp);
+        console.log('✅ OTP SMS sent successfully');
+      }
+
+      res.status(200).json({
+        success: true,
+        message: email 
+          ? 'OTP sent to your email. Please check your inbox.' 
+          : 'OTP sent to your mobile number.',
+        expiresIn: 300 // 5 minutes in seconds
+      });
+    } catch (sendError) {
+      console.error('❌ Error sending OTP:', sendError);
+      // Delete the OTP if sending failed
+      await Otp.deleteOne({ _id: otpDoc._id });
+      
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send OTP. Please try again.'
+      });
+    }
   } catch (error) {
-    console.error(error);
+    console.error('❌ Forgot password error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -371,11 +418,19 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    // For demo purposes, consider any 4-digit OTP as valid
+    // Validate OTP format
     if (otp.length !== 4 || !/^\d+$/.test(otp)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid OTP. Please enter a 4-digit code.'
+        message: 'Invalid OTP format. Please enter a 4-digit code.'
+      });
+    }
+
+    // Validate password strength
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
       });
     }
 
@@ -394,29 +449,89 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
+    // Find the OTP in database
+    const otpDoc = await Otp.findOne({
+      user: user._id,
+      type: 'password_reset',
+      verified: false
+    }).sort({ createdAt: -1 }); // Get the most recent OTP
+
+    if (!otpDoc) {
+      return res.status(400).json({
+        success: false,
+        message: 'No OTP found. Please request a new one.'
+      });
+    }
+
+    // Check if OTP is expired
+    if (otpDoc.isExpired()) {
+      await Otp.deleteOne({ _id: otpDoc._id });
+      return res.status(400).json({
+        success: false,
+        message: 'OTP has expired. Please request a new one.'
+      });
+    }
+
+    // Check if max attempts reached
+    if (otpDoc.maxAttemptsReached()) {
+      await Otp.deleteOne({ _id: otpDoc._id });
+      return res.status(400).json({
+        success: false,
+        message: 'Maximum OTP attempts reached. Please request a new one.'
+      });
+    }
+
+    // Verify OTP
+    if (otpDoc.otp !== otp) {
+      // Increment attempts
+      await otpDoc.incrementAttempts();
+      const remainingAttempts = 3 - otpDoc.attempts;
+      
+      return res.status(400).json({
+        success: false,
+        message: `Invalid OTP. ${remainingAttempts} attempt(s) remaining.`
+      });
+    }
+
+    // OTP is valid - mark as verified
+    otpDoc.verified = true;
+    await otpDoc.save();
+
     // Update password
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
     await user.save();
-    
-    // Send password change notification
+
+    // Delete all OTPs for this user after successful reset
+    await Otp.deleteMany({ user: user._id, type: 'password_reset' });
+
+    console.log(`✅ Password reset successful for user: ${user.email || user.mobile}`);
+
+    // Send confirmation notifications
     try {
-      // Send notification asynchronously (don't wait for it)
+      if (email) {
+        await emailService.sendPasswordChangedEmail(email, user.name);
+      }
+      if (mobile && smsService.isAvailable()) {
+        await smsService.sendPasswordChangedSms(mobile);
+      }
+      
+      // Send in-app notification
       NotificationService.sendSecurityNotification(
         user._id,
         'password_change'
-      ).catch(err => console.error('Error sending password change notification:', err));
+      ).catch(err => console.error('Error sending security notification:', err));
     } catch (notificationError) {
       // Log but don't fail the password reset process
-      console.error('Error sending password change notification:', notificationError);
+      console.error('Error sending notifications:', notificationError);
     }
 
     res.status(200).json({
       success: true,
-      message: 'Password reset successfully'
+      message: 'Password reset successfully. You can now log in with your new password.'
     });
   } catch (error) {
-    console.error(error);
+    console.error('❌ Reset password error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'
