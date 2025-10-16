@@ -153,13 +153,15 @@ class ChallengeAssignmentService {
     }
     
     const now = new Date();
-    const activeChallenges = gamification.challenges.filter(c => {
+    
+    // Check if any challenge has expired
+    const hasExpiredChallenges = gamification.challenges.some(c => {
       const expiryDate = new Date(c.expiryDate);
-      return expiryDate > now && !c.isCompleted;
+      return expiryDate <= now;
     });
     
-    // Refresh if less than 3 active challenges
-    return activeChallenges.length < 3;
+    // Refresh if challenges have expired OR if less than 5 challenges
+    return hasExpiredChallenges || gamification.challenges.length < 5;
   }
   
   /**

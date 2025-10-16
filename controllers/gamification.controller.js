@@ -30,17 +30,17 @@ exports.getGamificationData = async (req, res) => {
       });
     }
     
-    // Check if user needs new challenges (daily refresh)
+    // Check if user needs new challenges (daily refresh at 5 AM)
     if (ChallengeAssignmentService.needsChallengeRefresh(gamification)) {
       const newChallenges = await ChallengeAssignmentService.assignDailyChallenges(
         req.user.id,
         gamification
       );
       
-      // Keep completed challenges, add new ones
-      const completedChallenges = gamification.challenges.filter(c => c.isCompleted);
-      gamification.challenges = [...completedChallenges, ...newChallenges];
+      // Replace old challenges with new ones (don't keep completed ones)
+      gamification.challenges = newChallenges;
       await gamification.save();
+      console.log(`🔄 Refreshed challenges for user ${req.user.id} - ${newChallenges.length} new challenges`);
     }
     
     // Auto-check challenge completion
@@ -351,32 +351,29 @@ function generateDefaultAchievements() {
 // Update user streak
 async function updateStreak(gamification) {
   const now = new Date();
-  const lastActive = new Date(gamification.lastActive);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   
-  // Check if last active was yesterday
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
+  // Get last active date (default to epoch if not set)
+  const lastActive = gamification.lastActive ? new Date(gamification.lastActive) : new Date(0);
+  const lastActiveDate = new Date(lastActive.getFullYear(), lastActive.getMonth(), lastActive.getDate());
   
-  if (
-    lastActive.getFullYear() === yesterday.getFullYear() &&
-    lastActive.getMonth() === yesterday.getMonth() &&
-    lastActive.getDate() === yesterday.getDate()
-  ) {
-    // User was active yesterday, increment streak
-    gamification.streak += 1;
-  } else if (
-    lastActive.getFullYear() !== now.getFullYear() ||
-    lastActive.getMonth() !== now.getMonth() ||
-    lastActive.getDate() !== now.getDate()
-  ) {
-    // User wasn't active yesterday or today yet, reset streak
-    if (
-      lastActive.getFullYear() !== now.getFullYear() ||
-      lastActive.getMonth() !== now.getMonth() ||
-      now.getDate() - lastActive.getDate() > 1
-    ) {
-      gamification.streak = 1;
+  // Calculate days difference
+  const daysDiff = Math.floor((today - lastActiveDate) / (1000 * 60 * 60 * 24));
+  
+  if (daysDiff === 0) {
+    // Same day - no change to streak
+    return;
+  } else if (daysDiff === 1) {
+    // Consecutive day - increment streak
+    gamification.streak = (gamification.streak || 0) + 1;
+    if (gamification.streak > (gamification.longestStreak || 0)) {
+      gamification.longestStreak = gamification.streak;
     }
+    console.log(`🔥 User streak: ${gamification.streak} days`);
+  } else {
+    // Missed days - reset streak to 1
+    gamification.streak = 1;
+    console.log(`⚠️ Streak reset to 1 (missed ${daysDiff - 1} days)`);
   }
   
   // Update last active to today

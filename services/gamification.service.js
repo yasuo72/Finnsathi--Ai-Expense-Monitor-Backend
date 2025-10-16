@@ -170,17 +170,23 @@ class GamificationService {
       let pointsEarned = 15;
       let coinsEarned = 10;
 
-      // Check "Save Some Money" challenge
-      const challenge = gamification.challenges.find(c => 
-        c.title === 'Save Some Money' && !c.isCompleted
-      );
-      
-      if (challenge) {
-        challenge.isCompleted = true;
-        challenge.completedDate = new Date();
-        pointsEarned += challenge.points || 15;
-        coinsEarned += 5;
-        console.log(`✅ ${userId}: Challenge completed - Save Some Money`);
+      // Check for any savings challenge and update progress
+      for (const challenge of gamification.challenges) {
+        if (challenge.isCompleted) continue;
+        if (challenge.category === 'savings' && !challenge.isCompleted) {
+          // Increment progress
+          challenge.currentValue = (challenge.currentValue || 0) + 1;
+          challenge.targetValue = challenge.targetValue || 1;
+          
+          // Check if completed
+          if (challenge.currentValue >= challenge.targetValue) {
+            challenge.isCompleted = true;
+            challenge.completedDate = new Date();
+            pointsEarned += challenge.points || 15;
+            coinsEarned += challenge.coins || 5;
+            console.log(`✅ ${userId}: Challenge completed - ${challenge.title}`);
+          }
+        }
       }
 
       // Check Savings Starter achievement
