@@ -3,6 +3,24 @@
  * Difficulty Levels: easy (5-10 XP), medium (15-25 XP), hard (30-50 XP)
  */
 
+/**
+ * Get the start of "today" for challenge tracking (5 AM reset)
+ * If current time is before 5 AM, "today" starts at yesterday's 5 AM
+ * If current time is after 5 AM, "today" starts at today's 5 AM
+ */
+function getTodayStart() {
+  const now = new Date();
+  const todayAt5AM = new Date(now);
+  todayAt5AM.setHours(5, 0, 0, 0);
+  
+  // If current time is before 5 AM, use yesterday's 5 AM
+  if (now.getHours() < 5) {
+    todayAt5AM.setDate(todayAt5AM.getDate() - 1);
+  }
+  
+  return todayAt5AM;
+}
+
 const challengePool = [
   // ==================== TRACKING CHALLENGES (10) ====================
   {
@@ -18,8 +36,7 @@ const challengePool = [
     icon: 'receipt',
     checkCompletion: async (userId, gamification) => {
       const Transaction = require('../models/Transaction');
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const today = getTodayStart();
       const count = await Transaction.countDocuments({
         user: userId,
         type: 'expense',

@@ -34,10 +34,10 @@ class ChallengeAssignmentService {
       // Aim for: 2 easy, 2 medium, 1 hard
       const selected = this.balanceDifficulty(shuffled, 5);
       
-      // Convert to challenge format with expiry
+      // Convert to challenge format with expiry at 5 AM next day
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(0, 0, 0, 0);
+      tomorrow.setHours(5, 0, 0, 0); // Reset at 5 AM
       
       const challenges = selected.map(challenge => ({
         title: challenge.title,
@@ -267,6 +267,7 @@ class ChallengeAssignmentService {
   getDefaultChallenges() {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(5, 0, 0, 0); // Reset at 5 AM
     
     return [
       {

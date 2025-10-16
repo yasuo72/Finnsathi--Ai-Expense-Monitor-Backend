@@ -246,6 +246,7 @@ function generateDefaultChallenges() {
   const now = new Date();
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(5, 0, 0, 0); // Reset at 5 AM
   
   return [
     {
