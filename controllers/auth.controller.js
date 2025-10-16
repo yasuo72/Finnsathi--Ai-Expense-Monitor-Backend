@@ -368,44 +368,37 @@ exports.forgotPassword = async (req, res) => {
 
     console.log(`📧 Generated OTP for ${email || mobile}: ${otp}`);
 
-    // Send OTP via email or SMS
-    try {
-      if (email) {
-        // Try to send email, but don't fail if email service is not configured
-        try {
-          await emailService.sendOtpEmail(email, otp, user.name);
+    // Send OTP via email or SMS asynchronously (don't wait for it)
+    if (email) {
+      // Fire and forget - send email in background
+      emailService.sendOtpEmail(email, otp, user.name)
+        .then(() => {
           console.log('✅ OTP email sent successfully');
-        } catch (emailError) {
+        })
+        .catch(emailError => {
           console.log('⚠️ Email service not configured or failed:', emailError.message);
           console.log('📧 OTP (check console): ' + otp);
-        }
-      } else if (mobile) {
-        try {
-          await smsService.sendOtpSms(mobile, otp);
+        });
+    } else if (mobile) {
+      // Fire and forget - send SMS in background
+      smsService.sendOtpSms(mobile, otp)
+        .then(() => {
           console.log('✅ OTP SMS sent successfully');
-        } catch (smsError) {
+        })
+        .catch(smsError => {
           console.log('⚠️ SMS service not configured or failed:', smsError.message);
           console.log('📱 OTP (check console): ' + otp);
-        }
-      }
-
-      // Always return success - OTP is in database and console
-      res.status(200).json({
-        success: true,
-        message: email 
-          ? 'OTP generated. Check server console for OTP code.' 
-          : 'OTP generated. Check server console for OTP code.',
-        expiresIn: 300 // 5 minutes in seconds
-      });
-    } catch (sendError) {
-      console.error('❌ Unexpected error:', sendError);
-      // Still return success if OTP was saved to database
-      res.status(200).json({
-        success: true,
-        message: 'OTP generated. Check server console for OTP code.',
-        expiresIn: 300
-      });
+        });
     }
+
+    // Return success immediately - OTP is in database
+    res.status(200).json({
+      success: true,
+      message: email 
+        ? 'OTP generated successfully. Check your email or server console.' 
+        : 'OTP generated successfully. Check your SMS or server console.',
+      expiresIn: 300 // 5 minutes in seconds
+    });
   } catch (error) {
     console.error('❌ Forgot password error:', error);
     res.status(500).json({
