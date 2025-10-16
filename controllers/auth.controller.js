@@ -554,11 +554,10 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    // Find the OTP in database
+    // Find the OTP in database (accept both verified and unverified)
     const otpDoc = await Otp.findOne({
       user: user._id,
-      type: 'password_reset',
-      verified: false
+      type: 'password_reset'
     }).sort({ createdAt: -1 }); // Get the most recent OTP
 
     if (!otpDoc) {
@@ -577,30 +576,42 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    // Check if max attempts reached
-    if (otpDoc.maxAttemptsReached()) {
-      await Otp.deleteOne({ _id: otpDoc._id });
-      return res.status(400).json({
-        success: false,
-        message: 'Maximum OTP attempts reached. Please request a new one.'
-      });
-    }
+    // If OTP was already verified (from verify-reset-otp endpoint), skip verification
+    // Otherwise, verify it now
+    if (!otpDoc.verified) {
+      // Check if max attempts reached
+      if (otpDoc.maxAttemptsReached()) {
+        await Otp.deleteOne({ _id: otpDoc._id });
+        return res.status(400).json({
+          success: false,
+          message: 'Maximum OTP attempts reached. Please request a new one.'
+        });
+      }
 
-    // Verify OTP
-    if (otpDoc.otp !== otp) {
-      // Increment attempts
-      await otpDoc.incrementAttempts();
-      const remainingAttempts = 3 - otpDoc.attempts;
-      
-      return res.status(400).json({
-        success: false,
-        message: `Invalid OTP. ${remainingAttempts} attempt(s) remaining.`
-      });
-    }
+      // Verify OTP
+      if (otpDoc.otp !== otp) {
+        // Increment attempts
+        await otpDoc.incrementAttempts();
+        const remainingAttempts = 3 - otpDoc.attempts;
+        
+        return res.status(400).json({
+          success: false,
+          message: `Invalid OTP. ${remainingAttempts} attempt(s) remaining.`
+        });
+      }
 
-    // OTP is valid - mark as verified
-    otpDoc.verified = true;
-    await otpDoc.save();
+      // OTP is valid - mark as verified
+      otpDoc.verified = true;
+      await otpDoc.save();
+    } else {
+      // OTP was already verified in previous step - just double-check it matches
+      if (otpDoc.otp !== otp) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid OTP.'
+        });
+      }
+    }
 
     // Update password
     const salt = await bcrypt.genSalt(10);
