@@ -367,6 +367,7 @@ exports.forgotPassword = async (req, res) => {
     });
 
     console.log(`📧 Generated OTP for ${email || mobile}: ${otp}`);
+    console.log('✅ OTP saved to database successfully');
 
     // Send OTP via email or SMS asynchronously (don't wait for it)
     if (email) {
