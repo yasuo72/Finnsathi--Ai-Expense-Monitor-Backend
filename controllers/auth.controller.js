@@ -623,25 +623,25 @@ exports.resetPassword = async (req, res) => {
 
     console.log(`✅ Password reset successful for user: ${user.email || user.mobile}`);
 
-    // Send confirmation notifications
-    try {
-      if (email) {
-        await emailService.sendPasswordChangedEmail(email, user.name);
-      }
-      if (mobile && smsService.isAvailable()) {
-        await smsService.sendPasswordChangedSms(mobile);
-      }
-      
-      // Send in-app notification
-      NotificationService.sendSecurityNotification(
-        user._id,
-        'password_change'
-      ).catch(err => console.error('Error sending security notification:', err));
-    } catch (notificationError) {
-      // Log but don't fail the password reset process
-      console.error('Error sending notifications:', notificationError);
+    // Send confirmation notifications asynchronously (fire and forget)
+    if (email) {
+      emailService.sendPasswordChangedEmail(email, user.name)
+        .then(() => console.log('✅ Password change email sent'))
+        .catch(err => console.log('⚠️ Password change email failed:', err.message));
     }
+    if (mobile && smsService.isAvailable()) {
+      smsService.sendPasswordChangedSms(mobile)
+        .then(() => console.log('✅ Password change SMS sent'))
+        .catch(err => console.log('⚠️ Password change SMS failed:', err.message));
+    }
+    
+    // Send in-app notification (also async)
+    NotificationService.sendSecurityNotification(
+      user._id,
+      'password_change'
+    ).catch(err => console.error('Error sending security notification:', err));
 
+    // Return success immediately
     res.status(200).json({
       success: true,
       message: 'Password reset successfully. You can now log in with your new password.'
