@@ -409,6 +409,106 @@ exports.forgotPassword = async (req, res) => {
   }
 };
 
+// @desc    Verify OTP for password reset
+// @route   POST /api/auth/verify-reset-otp
+// @access  Public
+exports.verifyResetOtp = async (req, res) => {
+  try {
+    const { email, mobile, otp } = req.body;
+
+    if ((!email && !mobile) || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email/mobile and OTP'
+      });
+    }
+
+    // Validate OTP format
+    if (otp.length !== 4 || !/^\d+$/.test(otp)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid OTP format. Please enter a 4-digit code.'
+      });
+    }
+
+    // Find user
+    let user;
+    if (email) {
+      user = await User.findOne({ email });
+    } else if (mobile) {
+      user = await User.findOne({ mobile });
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Find the OTP in database
+    const otpDoc = await Otp.findOne({
+      user: user._id,
+      type: 'password_reset',
+      verified: false
+    }).sort({ createdAt: -1 });
+
+    if (!otpDoc) {
+      return res.status(400).json({
+        success: false,
+        message: 'No OTP found. Please request a new one.'
+      });
+    }
+
+    // Check if OTP is expired
+    if (otpDoc.isExpired()) {
+      await Otp.deleteOne({ _id: otpDoc._id });
+      return res.status(400).json({
+        success: false,
+        message: 'OTP has expired. Please request a new one.'
+      });
+    }
+
+    // Check if max attempts reached
+    if (otpDoc.maxAttemptsReached()) {
+      await Otp.deleteOne({ _id: otpDoc._id });
+      return res.status(400).json({
+        success: false,
+        message: 'Maximum OTP attempts reached. Please request a new one.'
+      });
+    }
+
+    // Verify OTP
+    if (otpDoc.otp !== otp) {
+      await otpDoc.incrementAttempts();
+      const remainingAttempts = 3 - otpDoc.attempts;
+      
+      return res.status(400).json({
+        success: false,
+        message: `Invalid OTP. ${remainingAttempts} attempt(s) remaining.`
+      });
+    }
+
+    // OTP is valid - mark as verified but don't delete yet
+    // (will be deleted after password reset)
+    otpDoc.verified = true;
+    await otpDoc.save();
+
+    console.log(`✅ OTP verified for user: ${user.email || user.mobile}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'OTP verified successfully'
+    });
+  } catch (error) {
+    console.error('❌ Verify OTP error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
 // @desc    Reset password
 // @route   POST /api/auth/reset-password
 // @access  Public
