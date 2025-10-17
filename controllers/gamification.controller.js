@@ -49,6 +49,9 @@ exports.getGamificationData = async (req, res) => {
     // Check and update streak
     await updateStreak(gamification);
     
+    // Reload gamification to get latest changes
+    gamification = await Gamification.findOne({ user: req.user.id });
+    
     res.status(200).json({
       success: true,
       data: gamification
@@ -690,11 +693,31 @@ exports.updateChallenges = async (req, res) => {
         }
         
         if (existingChallenge) {
-          console.log(`Updating existing challenge: ${existingChallenge.id}`);
-          // Update existing challenge
+          console.log(`Merging challenge: ${existingChallenge.id}`);
+          // DON'T overwrite backend progress - merge intelligently
           Object.keys(incomingChallenge).forEach(key => {
-            existingChallenge[key] = incomingChallenge[key];
+            // Skip overwriting currentValue if backend has higher value
+            if (key === 'currentValue') {
+              const serverValue = existingChallenge.currentValue || 0;
+              const clientValue = incomingChallenge.currentValue || 0;
+              existingChallenge.currentValue = Math.max(serverValue, clientValue);
+            }
+            // Skip overwriting isCompleted if already completed on server
+            else if (key === 'isCompleted') {
+              existingChallenge.isCompleted = existingChallenge.isCompleted || incomingChallenge.isCompleted;
+            }
+            // Skip overwriting completedDate if already set
+            else if (key === 'completedDate') {
+              if (!existingChallenge.completedDate && incomingChallenge.completedDate) {
+                existingChallenge.completedDate = incomingChallenge.completedDate;
+              }
+            }
+            // Update other fields normally
+            else {
+              existingChallenge[key] = incomingChallenge[key];
+            }
           });
+          console.log(`Final values - currentValue: ${existingChallenge.currentValue}, isCompleted: ${existingChallenge.isCompleted}`);
         } else {
           console.log(`Adding new challenge: ${incomingChallenge.id || 'unknown id'}`);
           // Add new challenge
