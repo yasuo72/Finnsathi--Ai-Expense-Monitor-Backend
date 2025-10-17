@@ -43,6 +43,13 @@ exports.getGamificationData = async (req, res) => {
       console.log(`🔄 Refreshed challenges for user ${req.user.id} - ${newChallenges.length} new challenges`);
     }
     
+    // ALWAYS limit challenges to maximum 5 (in case frontend sent more)
+    if (gamification.challenges.length > 5) {
+      console.log(`⚠️ User has ${gamification.challenges.length} challenges, limiting to 5`);
+      gamification.challenges = gamification.challenges.slice(0, 5);
+      await gamification.save();
+    }
+    
     // Auto-check challenge completion
     await ChallengeAssignmentService.autoCheckChallenges(req.user.id, gamification);
     
@@ -729,6 +736,12 @@ exports.updateChallenges = async (req, res) => {
           gamification.challenges.push(incomingChallenge);
         }
       });
+    }
+    
+    // ALWAYS limit to 5 challenges maximum
+    if (gamification.challenges.length > 5) {
+      console.log(`⚠️ After update, user has ${gamification.challenges.length} challenges, limiting to 5 most recent`);
+      gamification.challenges = gamification.challenges.slice(0, 5);
     }
     
     // Save the updated gamification data
