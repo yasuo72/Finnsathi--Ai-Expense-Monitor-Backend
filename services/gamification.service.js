@@ -27,8 +27,24 @@ class GamificationService {
       pointsEarned += 5;
       coinsEarned += 2;
 
-      // Update "Track Your Spending" challenge
-      await this.updateTrackingChallenge(gamification, transaction);
+      // Check and update tracking challenges
+      for (const challenge of gamification.challenges) {
+        if (challenge.isCompleted) continue;
+        if (challenge.category === 'tracking') {
+          const beforeValue = challenge.currentValue || 0;
+          challenge.currentValue = beforeValue + 1;
+          challenge.targetValue = challenge.targetValue || 1;
+          
+          // Check if just completed
+          if (challenge.currentValue >= challenge.targetValue && beforeValue < challenge.targetValue) {
+            challenge.isCompleted = true;
+            challenge.completedDate = new Date();
+            pointsEarned += challenge.points || 10;
+            coinsEarned += challenge.coins || 5;
+            console.log(`✅ ${userId}: Challenge completed - ${challenge.title}`);
+          }
+        }
+      }
 
       // Check achievements
       const allTransactions = await Transaction.find({ user: userId });
@@ -72,40 +88,23 @@ class GamificationService {
       }
 
       // Update points, coins, and level
-      if (pointsEarned > 0) {
-        // Update points if any challenges completed
-        if (0 > 0) {
-          gamification.points += 0;
-          gamification.coins = (gamification.coins || 0) + 0;
-          
-          // Check level up
-          const oldLevel = gamification.level;
-          gamification.level = Math.floor(gamification.points / 100) + 1;
-          
-          if (gamification.level > oldLevel) {
-            console.log(`🎉 ${userId}: Level up! ${oldLevel} → ${gamification.level}`);
-          }
-          
-          await gamification.save();
-          console.log(`✨ ${userId}: +${pointsEarned} XP, +${coinsEarned} coins`);
-        }
-        
-        // Auto-check challenges for completion
-        await ChallengeAssignmentService.autoCheckChallenges(userId, gamification);
-
-        return {
-          pointsEarned,
-          coinsEarned,
-          level: gamification.level,
-          leveledUp: gamification.level > (gamification.level - Math.floor(pointsEarned / 100))
-        };
+      const oldLevel = gamification.level;
+      gamification.points += pointsEarned;
+      gamification.coins = (gamification.coins || 0) + coinsEarned;
+      gamification.level = Math.floor(gamification.points / 100) + 1;
+      
+      if (gamification.level > oldLevel) {
+        console.log(`🎉 ${userId}: Level up! ${oldLevel} → ${gamification.level}`);
       }
+      
+      await gamification.save();
+      console.log(`✨ ${userId}: +${pointsEarned} XP, +${coinsEarned} coins (Transaction)`);
 
       return {
         pointsEarned,
         coinsEarned,
         level: gamification.level,
-        leveledUp: gamification.level > (gamification.level - Math.floor(pointsEarned / 100))
+        leveledUp: gamification.level > oldLevel
       };
     } catch (error) {
       console.error('Gamification service error (transaction):', error);
@@ -124,6 +123,25 @@ class GamificationService {
 
       let pointsEarned = 10;
       let coinsEarned = 5;
+
+      // Check for any budgeting challenge and update progress
+      for (const challenge of gamification.challenges) {
+        if (challenge.isCompleted) continue;
+        if (challenge.category === 'budgeting' && !challenge.isCompleted) {
+          // Increment progress
+          challenge.currentValue = (challenge.currentValue || 0) + 1;
+          challenge.targetValue = challenge.targetValue || 1;
+          
+          // Check if completed
+          if (challenge.currentValue >= challenge.targetValue) {
+            challenge.isCompleted = true;
+            challenge.completedDate = new Date();
+            pointsEarned += challenge.points || 15;
+            coinsEarned += challenge.coins || 5;
+            console.log(`✅ ${userId}: Challenge completed - ${challenge.title}`);
+          }
+        }
+      }
 
       // Check Budget Beginner achievement
       const budgets = await Budget.find({ user: userId });
@@ -224,22 +242,21 @@ class GamificationService {
 
   // Helper: Update tracking challenge progress
   async updateTrackingChallenge(gamification, transaction) {
-    if (transaction.type !== 'expense') return;
-
-    const challenge = gamification.challenges.find(c => 
-      c.title === 'Track Your Spending' && !c.isCompleted
-    );
-    
-    if (challenge) {
-      challenge.currentValue = (challenge.currentValue || 0) + 1;
-      challenge.targetValue = challenge.targetValue || 3;
-      
-      if (challenge.currentValue >= challenge.targetValue) {
-        challenge.isCompleted = true;
-        challenge.completedDate = new Date();
-        gamification.points += challenge.points || 10;
-        gamification.coins = (gamification.coins || 0) + 5;
-        console.log(`✅ Challenge completed - Track Your Spending`);
+    // Update any tracking challenges
+    for (const challenge of gamification.challenges) {
+      if (challenge.isCompleted) continue;
+      if (challenge.category === 'tracking' && !challenge.isCompleted) {
+        // Increment progress
+        challenge.currentValue = (challenge.currentValue || 0) + 1;
+        challenge.targetValue = challenge.targetValue || 1;
+        
+        // Check if completed
+        if (challenge.currentValue >= challenge.targetValue) {
+          challenge.isCompleted = true;
+          challenge.completedDate = new Date();
+          // Points and coins are added in the main update function
+          console.log(`✅ Challenge completed - ${challenge.title}`);
+        }
       }
     }
   }
