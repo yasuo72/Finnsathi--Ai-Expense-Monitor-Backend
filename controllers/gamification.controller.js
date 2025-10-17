@@ -656,15 +656,21 @@ exports.updateChallenges = async (req, res) => {
       // For each challenge in the request, sanitize then update or add it
       req.body.challenges.forEach(incomingChallenge => {
         // Sanitize incoming challenge to avoid CastError / validation errors
-        // 1. Remove invalid _id (empty string or not a valid 24-char hex) so Mongoose can generate one
-        if (typeof incomingChallenge._id === 'string') {
-          const idStr = incomingChallenge._id.trim();
+        
+        // 1. Remove invalid _id fields (frontend sends string IDs that aren't valid ObjectIds)
+        if (incomingChallenge._id) {
+          const idStr = String(incomingChallenge._id).trim();
           if (!idStr || !/^[0-9a-fA-F]{24}$/.test(idStr)) {
             delete incomingChallenge._id;
           }
         }
-
-        // 2. Fix wrongly mapped category/type values coming from older clients
+        
+        // 2. Remove frontend-generated 'id' field (not valid ObjectId)
+        // Frontend uses ids like "saving_1760660728226_31" which are not MongoDB ObjectIds
+        const frontendId = incomingChallenge.id;
+        delete incomingChallenge.id; // Remove it to avoid MongoDB cast errors
+        
+        // 3. Fix wrongly mapped category/type values coming from older clients
         const validCategories = ['savings', 'spending', 'budgeting', 'tracking'];
         const validTypes = ['daily', 'weekly', 'monthly', 'one-time'];
 
@@ -684,13 +690,12 @@ exports.updateChallenges = async (req, res) => {
         if (!incomingChallenge.type || !validTypes.includes(incomingChallenge.type)) {
           incomingChallenge.type = 'daily';
         }
-        // Try to find an existing challenge with the same ID
-        let existingChallenge = gamification.challenges.id(incomingChallenge.id);
         
-        // If not found by MongoDB ID, try to find by string ID
-        if (!existingChallenge && incomingChallenge.id) {
-          existingChallenge = gamification.challenges.find(c => c.id === incomingChallenge.id);
-        }
+        // Try to find an existing challenge by matching title and category
+        let existingChallenge = gamification.challenges.find(c => 
+          c.title === incomingChallenge.title && 
+          c.category === incomingChallenge.category
+        );
         
         if (existingChallenge) {
           console.log(`Merging challenge: ${existingChallenge.id}`);
