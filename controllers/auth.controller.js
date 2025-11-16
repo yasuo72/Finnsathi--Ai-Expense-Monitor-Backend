@@ -8,6 +8,8 @@ const smsService = require('../services/sms.service');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const cloudinary = require('../utils/cloudinary');
+const streamifier = require('streamifier');
 
 // @desc    Register user
 // @route   POST /api/auth/signup
@@ -91,7 +93,7 @@ exports.signup = async (req, res) => {
       }
       
       // Determine storage method based on configuration
-      const useFileSystem = process.env.PROFILE_STORAGE !== 'database';
+      const useFileSystem = process.env.PROFILE_STORAGE === 'filesystem';
       
       if (useFileSystem) {
         // FILESYSTEM STORAGE METHOD
@@ -156,24 +158,40 @@ exports.signup = async (req, res) => {
           });
         }
       } else {
-        // DATABASE STORAGE METHOD
-        // Convert file data to base64 for storage in database
-        const base64Data = file.data.toString('base64');
-        const dataUrl = `data:${file.mimetype};base64,${base64Data}`;
+        // CLOUDINARY STORAGE METHOD
+        let uploadResult;
+        try {
+          uploadResult = await new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+              {
+                folder: 'profile_pictures',
+                resource_type: 'image'
+              },
+              (error, result) => {
+                if (error) return reject(error);
+                resolve(result);
+              }
+            );
+            streamifier.createReadStream(file.data).pipe(uploadStream);
+          });
+        } catch (cloudErr) {
+          console.error('Cloudinary upload error (signup):', cloudErr);
+          return res.status(500).json({
+            success: false,
+            message: 'Image upload failed',
+            error: cloudErr.message
+          });
+        }
         
-        // Set profile picture data URL
-        profilePicturePath = dataUrl;
-        userData.profilePicture = dataUrl;
-        
-        // Add metadata
+        profilePicturePath = uploadResult.secure_url;
+        userData.profilePicture = uploadResult.secure_url;
         userData.profilePictureData = {
-          url: null, // No URL for database storage
+          url: uploadResult.secure_url,
+          publicId: uploadResult.public_id,
           uploadDate: new Date(),
           size: file.size,
           contentType: file.mimetype
         };
-        
-        console.log(`Profile picture for new user stored in database (${Math.round(file.size/1024)}KB)`);
       }
     }
 
