@@ -154,7 +154,10 @@ exports.updateProfile = async (req, res) => {
       }
       user.monthlyIncome = income;
     }
-    if (profilePicture) user.profilePicture = profilePicture;
+    // Update profile picture only if the new value looks like a full URL (e.g., Cloudinary)
+    if (profilePicture && /^https?:\/\//i.test(profilePicture)) {
+      user.profilePicture = profilePicture;
+    }
     
     // Update address if provided
     if (address) {
