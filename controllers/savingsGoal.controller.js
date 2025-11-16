@@ -207,8 +207,8 @@ exports.addToSavingsGoal = async (req, res) => {
       });
     }
     
-    // Update current amount
-    savingsGoal.currentAmount += amount;
+    // Update current amount (ensure numeric addition)
+    savingsGoal.currentAmount = Number(savingsGoal.currentAmount) + amount;
     
     // Check if goal is completed
     const isCompleted = savingsGoal.currentAmount >= savingsGoal.targetAmount;
@@ -308,8 +308,8 @@ exports.withdrawFromSavingsGoal = async (req, res) => {
       });
     }
     
-    // Update current amount
-    savingsGoal.currentAmount -= amount;
+    // Update current amount (ensure numeric subtraction)
+    savingsGoal.currentAmount = Number(savingsGoal.currentAmount) - amount;
     
     // Add a withdrawal entry
     savingsGoal.withdrawals.push({
