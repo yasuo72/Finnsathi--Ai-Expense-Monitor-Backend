@@ -146,6 +146,13 @@ exports.updateSavingsGoal = async (req, res) => {
 // @access  Private
 exports.deleteSavingsGoal = async (req, res) => {
   try {
+    // Validate ID format early to avoid CastError
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid savings goal ID format'
+      });
+    }
     const savingsGoal = await SavingsGoal.findOne({
       _id: req.params.id,
       user: req.user.id
