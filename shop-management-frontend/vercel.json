@@ -2,20 +2,10 @@
   "buildCommand": "npm run build",
   "outputDirectory": "build",
   "framework": "create-react-app",
-  "env": {
-    "REACT_APP_API_URL": "@react_app_api_url"
-  },
-  "routes": [
+  "rewrites": [
     {
-      "src": "^/static/(.*)$",
-      "dest": "/static/$1",
-      "headers": {
-        "cache-control": "public, max-age=31536000, immutable"
-      }
-    },
-    {
-      "src": "^/(?!static).*",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
