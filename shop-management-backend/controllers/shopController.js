@@ -153,3 +153,60 @@ exports.toggleShopStatus = async (req, res) => {
     res.status(500).json({ message: 'Error updating shop status', error: error.message });
   }
 };
+
+// Get all shops (public)
+exports.getAllShops = async (req, res) => {
+  try {
+    const { search, tags, minRating, maxDeliveryTime, sortBy } = req.query;
+    let query = { isVerified: true };
+
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+        { tags: { $in: [new RegExp(search, 'i')] } }
+      ];
+    }
+
+    if (tags) {
+      const tagArray = tags.split(',');
+      query.tags = { $in: tagArray };
+    }
+
+    if (minRating) {
+      query.rating = { $gte: parseFloat(minRating) };
+    }
+
+    if (maxDeliveryTime) {
+      query.deliveryTimeMinutes = { $lte: parseInt(maxDeliveryTime) };
+    }
+
+    let shops = await Shop.find(query).select('-operatingHours');
+
+    if (sortBy === 'rating') {
+      shops.sort((a, b) => b.rating - a.rating);
+    } else if (sortBy === 'delivery') {
+      shops.sort((a, b) => a.deliveryTimeMinutes - b.deliveryTimeMinutes);
+    }
+
+    res.json(shops);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching shops', error: error.message });
+  }
+};
+
+// Get shop by ID (public)
+exports.getShopById = async (req, res) => {
+  try {
+    const { shopId } = req.params;
+    const shop = await Shop.findById(shopId);
+    
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    res.json(shop);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching shop', error: error.message });
+  }
+};

@@ -4,13 +4,17 @@ const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
-// Specific routes MUST come before generic routes
+// Public routes (no authentication required)
+router.get('/', shopController.getAllShops);
+router.get('/:shopId', shopController.getShopById);
+
+// Protected routes (authentication required) - specific routes MUST come before generic routes
 router.get('/stats', authMiddleware, shopController.getShopStats);
 router.get('/my-shop', authMiddleware, shopController.getMyShop);
 router.post('/upload-image', authMiddleware, shopController.uploadShopImage);
 router.put('/toggle-status', authMiddleware, shopController.toggleShopStatus);
 
-// Generic routes AFTER specific routes
+// Generic protected routes AFTER specific routes
 router.post('/', authMiddleware, shopController.createShop);
 router.put('/', authMiddleware, shopController.updateShop);
 

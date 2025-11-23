@@ -173,3 +173,21 @@ exports.getMenuByCategory = async (req, res) => {
     res.status(500).json({ message: 'Error fetching menu', error: error.message });
   }
 };
+
+// Get shop menu (public)
+exports.getShopMenuPublic = async (req, res) => {
+  try {
+    const { shopId } = req.params;
+    const { category } = req.query;
+
+    let query = { shopId, isAvailable: true };
+    if (category) {
+      query.category = category;
+    }
+
+    const menuItems = await MenuItem.find(query);
+    res.json(menuItems);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching menu', error: error.message });
+  }
+};
