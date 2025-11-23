@@ -7,8 +7,13 @@ const streamifier = require('streamifier');
 // Create shop
 exports.createShop = async (req, res) => {
   try {
+    console.log('createShop - req.user:', req.user);
     const { name, description, location, phone, email, tags, operatingHours, deliveryTimeMinutes, deliveryFee } = req.body;
     const ownerId = req.user.id;
+
+    if (!ownerId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
 
     // Check if owner already has a shop
     const existingShop = await Shop.findOne({ ownerId });
@@ -32,6 +37,7 @@ exports.createShop = async (req, res) => {
     await shop.save();
     res.status(201).json({ message: 'Shop created successfully', shop });
   } catch (error) {
+    console.error('createShop error:', error);
     res.status(500).json({ message: 'Error creating shop', error: error.message });
   }
 };
@@ -39,12 +45,20 @@ exports.createShop = async (req, res) => {
 // Get my shop
 exports.getMyShop = async (req, res) => {
   try {
+    console.log('getMyShop - req.user:', req.user);
+    console.log('getMyShop - req.user.id:', req.user?.id);
+    
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: 'User not authenticated or ID missing' });
+    }
+    
     const shop = await Shop.findOne({ ownerId: req.user.id });
     if (!shop) {
       return res.status(404).json({ message: 'Shop not found' });
     }
     res.json(shop);
   } catch (error) {
+    console.error('getMyShop error:', error);
     res.status(500).json({ message: 'Error fetching shop', error: error.message });
   }
 };
@@ -52,6 +66,13 @@ exports.getMyShop = async (req, res) => {
 // Update shop
 exports.updateShop = async (req, res) => {
   try {
+    console.log('updateShop - req.user:', req.user);
+    console.log('updateShop - req.body:', req.body);
+    
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+    
     const shop = await Shop.findOne({ ownerId: req.user.id });
     if (!shop) {
       return res.status(404).json({ message: 'Shop not found' });
@@ -64,6 +85,7 @@ exports.updateShop = async (req, res) => {
 
     res.json({ message: 'Shop updated successfully', shop });
   } catch (error) {
+    console.error('updateShop error:', error);
     res.status(500).json({ message: 'Error updating shop', error: error.message });
   }
 };
