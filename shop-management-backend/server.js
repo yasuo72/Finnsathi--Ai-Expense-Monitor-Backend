@@ -75,7 +75,7 @@ app.use((req, res) => {
 
 // Start server
 const PORT = process.env.PORT || 5001;
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
   console.log(`Shop Management Backend running on port ${PORT}`);
 });
 
