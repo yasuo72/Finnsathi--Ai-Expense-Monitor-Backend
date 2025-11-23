@@ -71,30 +71,40 @@ exports.updateShop = async (req, res) => {
 // Upload shop image
 exports.uploadShopImage = async (req, res) => {
   try {
+    console.log('Upload request received');
+    console.log('Files:', req.files);
+    console.log('User:', req.user);
+
     if (!req.files || !req.files.image) {
+      console.log('No image file found');
       return res.status(400).json({ message: 'No image provided' });
     }
 
     const shop = await Shop.findOne({ ownerId: req.user.id });
     if (!shop) {
+      console.log('Shop not found for user:', req.user.id);
       return res.status(404).json({ message: 'Shop not found' });
     }
 
+    console.log('Uploading image to Cloudinary...');
     const uploadStream = cloudinary.uploader.upload_stream(
       { folder: 'finnsathi/shops' },
       async (error, result) => {
         if (error) {
+          console.error('Cloudinary upload error:', error);
           return res.status(500).json({ message: 'Error uploading image', error: error.message });
         }
 
+        console.log('Image uploaded successfully:', result.secure_url);
         shop.imageUrl = result.secure_url;
         await shop.save();
-        res.json({ message: 'Image uploaded successfully', imageUrl: result.secure_url });
+        res.json({ success: true, message: 'Image uploaded successfully', imageUrl: result.secure_url });
       }
     );
 
     streamifier.createReadStream(req.files.image.data).pipe(uploadStream);
   } catch (error) {
+    console.error('Upload error:', error);
     res.status(500).json({ message: 'Error uploading image', error: error.message });
   }
 };
