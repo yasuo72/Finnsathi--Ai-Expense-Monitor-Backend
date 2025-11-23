@@ -165,7 +165,7 @@ exports.deleteSavingsGoal = async (req, res) => {
       });
     }
     
-    await savingsGoal.remove();
+    await SavingsGoal.deleteOne({ _id: req.params.id });
     
     res.status(200).json({
       success: true,
