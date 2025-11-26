@@ -31,8 +31,15 @@ const app = express();
 // Configure CORS
 // Configure CORS based on environment
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://finnsathi.vercel.app', /\.railway\.app$/] // Add your frontend domains
+  origin: process.env.NODE_ENV === 'production'
+    ? [
+        'https://finnsathi.vercel.app',
+        // Shop management frontend on Vercel
+        'https://finnsathi-ai-expense-monitor-backen-iota.vercel.app',
+        // Allow any Vercel and Railway app domains
+        /\.vercel\.app$/,
+        /\.railway\.app$/,
+      ]
     : process.env.CORS_ORIGIN || '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -209,6 +216,114 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/predictions', predictionRoutes);
 app.use('/api/gemini', geminiRoutes);
+
+// Proxy shop routes to Shop Management Backend
+const axios = require('axios');
+const shopBackendUrl = process.env.SHOP_BACKEND_URL || 'http://localhost:5001';
+
+app.use('/api/shops', async (req, res) => {
+  try {
+    const url = `${shopBackendUrl}/api/shops${req.originalUrl.replace('/api/shops', '')}`;
+    const config = {
+      method: req.method,
+      url: url,
+      headers: {
+        ...req.headers,
+        'Authorization': req.headers.authorization || ''
+      }
+    };
+
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      config.data = req.body;
+    }
+
+    const response = await axios(config);
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error('Shop proxy error:', error.message);
+    res.status(error.response?.status || 500).json({
+      message: error.response?.data?.message || 'Error proxying to shop backend'
+    });
+  }
+});
+
+app.use('/api/menu', async (req, res) => {
+  try {
+    const url = `${shopBackendUrl}/api/menu${req.originalUrl.replace('/api/menu', '')}`;
+    const config = {
+      method: req.method,
+      url: url,
+      headers: {
+        ...req.headers,
+        'Authorization': req.headers.authorization || ''
+      }
+    };
+
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      config.data = req.body;
+    }
+
+    const response = await axios(config);
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error('Menu proxy error:', error.message);
+    res.status(error.response?.status || 500).json({
+      message: error.response?.data?.message || 'Error proxying to shop backend'
+    });
+  }
+});
+
+app.use('/api/orders', async (req, res) => {
+  try {
+    const url = `${shopBackendUrl}/api/orders${req.originalUrl.replace('/api/orders', '')}`;
+    const config = {
+      method: req.method,
+      url: url,
+      headers: {
+        ...req.headers,
+        'Authorization': req.headers.authorization || ''
+      }
+    };
+
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      config.data = req.body;
+    }
+
+    const response = await axios(config);
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error('Orders proxy error:', error.message);
+    res.status(error.response?.status || 500).json({
+      message: error.response?.data?.message || 'Error proxying to shop backend'
+    });
+  }
+});
+
+app.use('/api/auth', async (req, res) => {
+  try {
+    const url = `${shopBackendUrl}/api/auth${req.originalUrl.replace('/api/auth', '')}`;
+    const config = {
+      method: req.method,
+      url: url,
+      headers: {
+        ...req.headers,
+        'Authorization': req.headers.authorization || ''
+      }
+    };
+
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      config.data = req.body;
+    }
+
+    const response = await axios(config);
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error('Auth proxy error:', error.message);
+    res.status(error.response?.status || 500).json({
+      message: error.response?.data?.message || 'Error proxying to shop backend'
+    });
+  }
+});
 
 // Health check endpoint for Railway
 app.get('/health', (req, res) => {
