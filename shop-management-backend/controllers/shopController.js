@@ -175,7 +175,7 @@ exports.toggleShopStatus = async (req, res) => {
 exports.getAllShops = async (req, res) => {
   try {
     const { search, tags, minRating, maxDeliveryTime, sortBy } = req.query;
-    let query = { isVerified: true };
+    let query = {};
 
     if (search) {
       query.$or = [
