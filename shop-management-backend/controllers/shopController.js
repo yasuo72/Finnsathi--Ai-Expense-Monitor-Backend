@@ -49,6 +49,33 @@ exports.getMyShop = async (req, res) => {
   }
 };
 
+// Get reviews for a shop based on rated orders (public)
+exports.getShopReviews = async (req, res) => {
+  try {
+    const { shopId } = req.params;
+
+    const orders = await ShopOrder.find({
+      shopId,
+      rating: { $exists: true, $ne: null },
+    }).sort({ updatedAt: -1 });
+
+    const reviews = orders.map((order) => ({
+      orderId: order.orderId || order._id,
+      userId: order.userId,
+      rating: order.rating,
+      comment: order.review || '',
+      date: order.updatedAt || order.createdAt,
+      images: order.reviewImages || [],
+    }));
+
+    res.json(reviews);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: 'Error fetching shop reviews', error: error.message });
+  }
+};
+
 // Update shop
 exports.updateShop = async (req, res) => {
   try {
