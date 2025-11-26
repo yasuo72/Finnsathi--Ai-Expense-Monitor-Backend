@@ -255,9 +255,13 @@ exports.rateOrder = async (req, res) => {
       return res.status(400).json({ message: 'Rating must be between 1 and 5' });
     }
 
+    // The FinSathi app uses the business orderId field (e.g. 'ORD-123...')
+    // when calling this endpoint, not the MongoDB _id. Attempting to cast
+    // 'ORD-...' into an ObjectId throws a CastError and results in HTTP 500.
+    // So we look up the order purely by userId + orderId.
     const order = await ShopOrder.findOne({
       userId,
-      $or: [{ _id: orderId }, { orderId }],
+      orderId,
     });
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
