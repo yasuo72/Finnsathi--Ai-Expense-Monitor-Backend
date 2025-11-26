@@ -224,13 +224,18 @@ const shopBackendUrl = process.env.SHOP_BACKEND_URL || 'http://localhost:5001';
 app.use('/api/shops', async (req, res) => {
   try {
     const url = `${shopBackendUrl}/api/shops${req.originalUrl.replace('/api/shops', '')}`;
+
+    const headers = {
+      'Content-Type': req.headers['content-type'] || 'application/json',
+    };
+    if (req.headers.authorization) {
+      headers['Authorization'] = req.headers.authorization;
+    }
+
     const config = {
       method: req.method,
-      url: url,
-      headers: {
-        ...req.headers,
-        'Authorization': req.headers.authorization || ''
-      }
+      url,
+      headers,
     };
 
     if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -240,7 +245,7 @@ app.use('/api/shops', async (req, res) => {
     const response = await axios(config);
     res.status(response.status).json(response.data);
   } catch (error) {
-    console.error('Shop proxy error:', error.message);
+    console.error('Shop proxy error:', error.message, 'URL:', `${shopBackendUrl}/api/shops${req.originalUrl.replace('/api/shops', '')}`);
     res.status(error.response?.status || 500).json({
       message: error.response?.data?.message || 'Error proxying to shop backend'
     });
@@ -250,13 +255,18 @@ app.use('/api/shops', async (req, res) => {
 app.use('/api/menu', async (req, res) => {
   try {
     const url = `${shopBackendUrl}/api/menu${req.originalUrl.replace('/api/menu', '')}`;
+
+    const headers = {
+      'Content-Type': req.headers['content-type'] || 'application/json',
+    };
+    if (req.headers.authorization) {
+      headers['Authorization'] = req.headers.authorization;
+    }
+
     const config = {
       method: req.method,
-      url: url,
-      headers: {
-        ...req.headers,
-        'Authorization': req.headers.authorization || ''
-      }
+      url,
+      headers,
     };
 
     if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -266,7 +276,7 @@ app.use('/api/menu', async (req, res) => {
     const response = await axios(config);
     res.status(response.status).json(response.data);
   } catch (error) {
-    console.error('Menu proxy error:', error.message);
+    console.error('Menu proxy error:', error.message, 'URL:', `${shopBackendUrl}/api/menu${req.originalUrl.replace('/api/menu', '')}`);
     res.status(error.response?.status || 500).json({
       message: error.response?.data?.message || 'Error proxying to shop backend'
     });
@@ -276,13 +286,18 @@ app.use('/api/menu', async (req, res) => {
 app.use('/api/orders', async (req, res) => {
   try {
     const url = `${shopBackendUrl}/api/orders${req.originalUrl.replace('/api/orders', '')}`;
+
+    const headers = {
+      'Content-Type': req.headers['content-type'] || 'application/json',
+    };
+    if (req.headers.authorization) {
+      headers['Authorization'] = req.headers.authorization;
+    }
+
     const config = {
       method: req.method,
-      url: url,
-      headers: {
-        ...req.headers,
-        'Authorization': req.headers.authorization || ''
-      }
+      url,
+      headers,
     };
 
     if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -292,7 +307,7 @@ app.use('/api/orders', async (req, res) => {
     const response = await axios(config);
     res.status(response.status).json(response.data);
   } catch (error) {
-    console.error('Orders proxy error:', error.message);
+    console.error('Orders proxy error:', error.message, 'URL:', `${shopBackendUrl}/api/orders${req.originalUrl.replace('/api/orders', '')}`);
     res.status(error.response?.status || 500).json({
       message: error.response?.data?.message || 'Error proxying to shop backend'
     });
@@ -302,13 +317,18 @@ app.use('/api/orders', async (req, res) => {
 app.use('/api/auth', async (req, res) => {
   try {
     const url = `${shopBackendUrl}/api/auth${req.originalUrl.replace('/api/auth', '')}`;
+
+    const headers = {
+      'Content-Type': req.headers['content-type'] || 'application/json',
+    };
+    if (req.headers.authorization) {
+      headers['Authorization'] = req.headers.authorization;
+    }
+
     const config = {
       method: req.method,
-      url: url,
-      headers: {
-        ...req.headers,
-        'Authorization': req.headers.authorization || ''
-      }
+      url,
+      headers,
     };
 
     if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -318,7 +338,7 @@ app.use('/api/auth', async (req, res) => {
     const response = await axios(config);
     res.status(response.status).json(response.data);
   } catch (error) {
-    console.error('Auth proxy error:', error.message);
+    console.error('Auth proxy error:', error.message, 'URL:', `${shopBackendUrl}/api/auth${req.originalUrl.replace('/api/auth', '')}`);
     res.status(error.response?.status || 500).json({
       message: error.response?.data?.message || 'Error proxying to shop backend'
     });
