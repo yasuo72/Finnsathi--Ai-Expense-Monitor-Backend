@@ -22,6 +22,7 @@ export default function ShopPage() {
       if (error.response?.status === 404) {
         setShop(null);
       } else {
+        console.error('Error loading shop:', error.response?.data || error.message || error);
         toast.error('Failed to load shop');
       }
     } finally {
@@ -65,7 +66,7 @@ export default function ShopPage() {
       setFormData(prev => ({ ...prev, imageUrl: response.data.imageUrl }));
       toast.success('Image uploaded successfully');
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error('Upload error:', error.response?.data || error.message || error);
       toast.error(error.response?.data?.message || 'Failed to upload image');
     }
   };
@@ -84,7 +85,12 @@ export default function ShopPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Shop Image */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Shop Image</label>
+            <label
+              htmlFor="shop-image"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Shop Image
+            </label>
             <div className="flex items-center space-x-4">
               {formData.imageUrl && (
                 <img src={formData.imageUrl} alt="Shop" className="w-32 h-32 rounded-lg object-cover" />
@@ -93,6 +99,8 @@ export default function ShopPage() {
                 <Upload size={20} />
                 <span>Upload Image</span>
                 <input
+                  id="shop-image"
+                  name="image"
                   type="file"
                   accept="image/*"
                   onChange={handleImageUpload}
@@ -105,8 +113,14 @@ export default function ShopPage() {
           {/* Shop Details */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Shop Name</label>
+              <label
+                htmlFor="shop-name"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Shop Name
+              </label>
               <input
+                id="shop-name"
                 type="text"
                 name="name"
                 value={formData.name || ''}
@@ -118,8 +132,14 @@ export default function ShopPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+              <label
+                htmlFor="shop-phone"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Phone
+              </label>
               <input
+                id="shop-phone"
                 type="tel"
                 name="phone"
                 value={formData.phone || ''}
@@ -131,8 +151,14 @@ export default function ShopPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              <label
+                htmlFor="shop-email"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Email
+              </label>
               <input
+                id="shop-email"
                 type="email"
                 name="email"
                 value={formData.email || ''}
@@ -144,8 +170,14 @@ export default function ShopPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+              <label
+                htmlFor="shop-location"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Location
+              </label>
               <input
+                id="shop-location"
                 type="text"
                 name="location"
                 value={formData.location || ''}
@@ -157,8 +189,14 @@ export default function ShopPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Time (minutes)</label>
+              <label
+                htmlFor="shop-delivery-time"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Delivery Time (minutes)
+              </label>
               <input
+                id="shop-delivery-time"
                 type="number"
                 name="deliveryTimeMinutes"
                 value={formData.deliveryTimeMinutes || 30}
@@ -168,8 +206,14 @@ export default function ShopPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Fee (₹)</label>
+              <label
+                htmlFor="shop-delivery-fee"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Delivery Fee (₹)
+              </label>
               <input
+                id="shop-delivery-fee"
                 type="number"
                 name="deliveryFee"
                 value={formData.deliveryFee || 0}
@@ -180,8 +224,14 @@ export default function ShopPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+            <label
+              htmlFor="shop-description"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Description
+            </label>
             <textarea
+              id="shop-description"
               name="description"
               value={formData.description || ''}
               onChange={handleChange}

@@ -12,28 +12,12 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    e.stopPropagation();
-    
-    if (!email || !password) {
-      toast.error('Please enter email and password');
-      return;
-    }
-
     try {
-      console.log('API URL:', process.env.REACT_APP_API_URL);
-      console.log('Attempting login with:', { email });
       await login(email, password);
-      console.log('Login successful!');
       toast.success('Login successful!');
       navigate('/dashboard');
     } catch (error) {
-      console.error('Full error object:', error);
-      console.error('Error response:', error.response);
-      console.error('Error status:', error.response?.status);
-      console.error('Error data:', error.response?.data);
-      const errorMsg = error.response?.data?.message || error.message || 'Login failed';
-      console.error('Showing error:', errorMsg);
-      toast.error(errorMsg);
+      toast.error(error.response?.data?.message || 'Login failed');
     }
   };
 
@@ -48,10 +32,17 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              <label
+                htmlFor="login-email"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Email
+              </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 text-gray-400" size={20} />
                 <input
+                  id="login-email"
+                  name="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -63,10 +54,17 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+              <label
+                htmlFor="login-password"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Password
+              </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 text-gray-400" size={20} />
                 <input
+                  id="login-password"
+                  name="password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

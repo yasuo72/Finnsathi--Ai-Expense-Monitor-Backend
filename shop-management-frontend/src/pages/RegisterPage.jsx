@@ -23,28 +23,12 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    e.stopPropagation();
-    
-    if (!formData.name || !formData.email || !formData.phone || !formData.password) {
-      toast.error('Please fill all required fields');
-      return;
-    }
-
     try {
-      console.log('API URL:', process.env.REACT_APP_API_URL);
-      console.log('Attempting registration with:', { email: formData.email });
       await register(formData);
-      console.log('Registration successful!');
       toast.success('Registration successful!');
       navigate('/dashboard');
     } catch (error) {
-      console.error('Full error object:', error);
-      console.error('Error response:', error.response);
-      console.error('Error status:', error.response?.status);
-      console.error('Error data:', error.response?.data);
-      const errorMsg = error.response?.data?.message || error.message || 'Registration failed';
-      console.error('Showing error:', errorMsg);
-      toast.error(errorMsg);
+      toast.error(error.response?.data?.message || 'Registration failed');
     }
   };
 
@@ -59,10 +43,16 @@ export default function RegisterPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+              <label
+                htmlFor="register-name"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Full Name
+              </label>
               <div className="relative">
                 <User className="absolute left-3 top-3 text-gray-400" size={20} />
                 <input
+                  id="register-name"
                   type="text"
                   name="name"
                   value={formData.name}
@@ -75,10 +65,16 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              <label
+                htmlFor="register-email"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Email
+              </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 text-gray-400" size={20} />
                 <input
+                  id="register-email"
                   type="email"
                   name="email"
                   value={formData.email}
@@ -91,10 +87,16 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+              <label
+                htmlFor="register-phone"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Phone
+              </label>
               <div className="relative">
                 <Phone className="absolute left-3 top-3 text-gray-400" size={20} />
                 <input
+                  id="register-phone"
                   type="tel"
                   name="phone"
                   value={formData.phone}
@@ -107,8 +109,14 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Business Name</label>
+              <label
+                htmlFor="register-business-name"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Business Name
+              </label>
               <input
+                id="register-business-name"
                 type="text"
                 name="businessName"
                 value={formData.businessName}
@@ -119,8 +127,14 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Business Type</label>
+              <label
+                htmlFor="register-business-type"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Business Type
+              </label>
               <select
+                id="register-business-type"
                 name="businessType"
                 value={formData.businessType}
                 onChange={handleChange}
@@ -135,10 +149,16 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+              <label
+                htmlFor="register-password"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Password
+              </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 text-gray-400" size={20} />
                 <input
+                  id="register-password"
                   type="password"
                   name="password"
                   value={formData.password}

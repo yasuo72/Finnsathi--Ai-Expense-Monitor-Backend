@@ -16,6 +16,7 @@ export default function DashboardPage() {
       const response = await api.get('/shops/stats');
       setStats(response.data);
     } catch (error) {
+      console.error('Error loading shop stats:', error.response?.data || error.message || error);
       toast.error('Failed to load statistics');
     } finally {
       setLoading(false);
