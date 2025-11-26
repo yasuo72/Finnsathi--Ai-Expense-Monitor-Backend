@@ -84,6 +84,7 @@ export default function OrdersPage() {
             <thead className="bg-gray-50 border-b">
               <tr>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Order ID</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Customer</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Amount</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Items</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
@@ -97,6 +98,32 @@ export default function OrdersPage() {
                 return (
                   <tr key={order._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">{order.orderId}</td>
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      <div className="flex items-center space-x-3">
+                        {order.customer?.avatarUrl ? (
+                          <img
+                            src={order.customer.avatarUrl}
+                            alt={order.customer.name || 'Customer'}
+                            className="h-8 w-8 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-semibold text-gray-600">
+                            {(order.customer?.name || 'C')
+                              .toString()
+                              .charAt(0)
+                              .toUpperCase()}
+                          </div>
+                        )}
+                        <div>
+                          <div className="font-medium">
+                            {order.customer?.name || 'Customer'}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {order.customer?.phone || order.customer?.email || ''}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
                     <td className="px-6 py-4 text-sm font-semibold text-gray-900">₹{order.finalAmount}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{order.items.length} items</td>
                     <td className="px-6 py-4">
