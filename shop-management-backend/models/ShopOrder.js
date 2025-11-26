@@ -15,6 +15,13 @@ const shopOrderSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  customer: {
+    id: String,
+    name: String,
+    email: String,
+    phone: String,
+    avatarUrl: String,
+  },
   items: [
     {
       menuItemId: mongoose.Schema.Types.ObjectId,

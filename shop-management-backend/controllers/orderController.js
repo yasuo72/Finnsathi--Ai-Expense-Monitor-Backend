@@ -162,7 +162,15 @@ exports.getOrderStats = async (req, res) => {
 // Create order from FinSathi app (customer-facing)
 exports.createOrderFromApp = async (req, res) => {
   try {
-    const { shopId, items, deliveryAddress, paymentMethod, notes, deliveryCoordinates } = req.body;
+    const {
+      shopId,
+      items,
+      deliveryAddress,
+      paymentMethod,
+      notes,
+      deliveryCoordinates,
+      customer,
+    } = req.body;
 
     if (!shopId || !Array.isArray(items) || items.length === 0 || !deliveryAddress || !paymentMethod) {
       return res.status(400).json({ message: 'Missing required fields' });
@@ -206,6 +214,13 @@ exports.createOrderFromApp = async (req, res) => {
       orderId: `ORD-${Date.now()}`,
       shopId: shop._id,
       userId: (req.user && req.user.id) || 'anonymous',
+      customer: customer || {
+        id: (req.user && (req.user.id || req.user._id)) || undefined,
+        name: (req.user && req.user.name) || undefined,
+        email: (req.user && req.user.email) || undefined,
+        phone: (req.user && (req.user.phone || req.user.mobile)) || undefined,
+        avatarUrl: (req.user && req.user.avatarUrl) || undefined,
+      },
       items: orderItems,
       totalAmount,
       deliveryFee,
@@ -215,7 +230,8 @@ exports.createOrderFromApp = async (req, res) => {
       deliveryCoordinates: deliveryCoordinates || undefined,
       status: 'placed',
       paymentMethod,
-      paymentStatus: paymentMethod === 'cashOnDelivery' ? 'pending' : 'completed',
+      paymentStatus:
+        paymentMethod === 'cashOnDelivery' ? 'pending' : 'completed',
       notes,
     });
 
