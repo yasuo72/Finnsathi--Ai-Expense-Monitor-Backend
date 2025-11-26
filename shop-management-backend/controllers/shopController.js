@@ -87,9 +87,11 @@ exports.uploadShopImage = async (req, res) => {
     }
 
     console.log('Uploading image to Cloudinary...');
-    const uploadStream = cloudinary.uploader.upload_stream(
-      { folder: 'finnsathi/shops' },
-      async (error, result) => {
+    const file = req.files.image;
+    const uploadOptions = { folder: 'finnsathi/shops' };
+
+    if (file.tempFilePath) {
+      cloudinary.uploader.upload(file.tempFilePath, uploadOptions, async (error, result) => {
         if (error) {
           console.error('Cloudinary upload error:', error);
           return res.status(500).json({ message: 'Error uploading image', error: error.message });
@@ -99,10 +101,25 @@ exports.uploadShopImage = async (req, res) => {
         shop.imageUrl = result.secure_url;
         await shop.save();
         res.json({ success: true, message: 'Image uploaded successfully', imageUrl: result.secure_url });
-      }
-    );
+      });
+    } else {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        uploadOptions,
+        async (error, result) => {
+          if (error) {
+            console.error('Cloudinary upload error:', error);
+            return res.status(500).json({ message: 'Error uploading image', error: error.message });
+          }
 
-    streamifier.createReadStream(req.files.image.data).pipe(uploadStream);
+          console.log('Image uploaded successfully:', result.secure_url);
+          shop.imageUrl = result.secure_url;
+          await shop.save();
+          res.json({ success: true, message: 'Image uploaded successfully', imageUrl: result.secure_url });
+        }
+      );
+
+      streamifier.createReadStream(file.data).pipe(uploadStream);
+    }
   } catch (error) {
     console.error('Upload error:', error);
     res.status(500).json({ message: 'Error uploading image', error: error.message });

@@ -111,9 +111,11 @@ exports.uploadMenuItemImage = async (req, res) => {
       return res.status(404).json({ message: 'Menu item not found' });
     }
 
-    const uploadStream = cloudinary.uploader.upload_stream(
-      { folder: 'finnsathi/menu-items' },
-      async (error, result) => {
+    const file = req.files.image;
+    const uploadOptions = { folder: 'finnsathi/menu-items' };
+
+    if (file.tempFilePath) {
+      cloudinary.uploader.upload(file.tempFilePath, uploadOptions, async (error, result) => {
         if (error) {
           return res.status(500).json({ message: 'Error uploading image', error: error.message });
         }
@@ -121,10 +123,23 @@ exports.uploadMenuItemImage = async (req, res) => {
         menuItem.imageUrl = result.secure_url;
         await menuItem.save();
         res.json({ message: 'Image uploaded successfully', imageUrl: result.secure_url });
-      }
-    );
+      });
+    } else {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        uploadOptions,
+        async (error, result) => {
+          if (error) {
+            return res.status(500).json({ message: 'Error uploading image', error: error.message });
+          }
 
-    streamifier.createReadStream(req.files.image.data).pipe(uploadStream);
+          menuItem.imageUrl = result.secure_url;
+          await menuItem.save();
+          res.json({ message: 'Image uploaded successfully', imageUrl: result.secure_url });
+        }
+      );
+
+      streamifier.createReadStream(file.data).pipe(uploadStream);
+    }
   } catch (error) {
     res.status(500).json({ message: 'Error uploading image', error: error.message });
   }
