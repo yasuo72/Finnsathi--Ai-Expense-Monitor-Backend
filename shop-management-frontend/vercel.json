@@ -1,6 +1,4 @@
 {
   "buildCommand": "CI=false npm run build",
-  "outputDirectory": "build",
-  "monorepoRoot": true,
-  "root": "."
+  "outputDirectory": "build"
 }
