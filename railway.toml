@@ -1,0 +1,8 @@
+[build]
+builder = "nixpacks"
+rootDirectory = "shop-management-backend"
+
+[deploy]
+startCommand = "npm start"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 5
