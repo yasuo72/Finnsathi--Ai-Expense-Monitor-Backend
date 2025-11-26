@@ -27,6 +27,8 @@ router.get('/unread-count', getUnreadCount);
 router.get('/:id', getNotification);
 router.patch('/:id/read', markAsRead);
 router.patch('/read-all', markAllAsRead);
+// Allow both PATCH and PUT for marking all notifications as read
+router.put('/read-all', markAllAsRead);
 router.delete('/:id', deleteNotification);
 router.delete('/read', deleteReadNotifications);
 
