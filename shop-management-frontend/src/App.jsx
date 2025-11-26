@@ -15,11 +15,15 @@ import OrderDetailsPage from './pages/OrderDetailsPage';
 import ProfilePage from './pages/ProfilePage';
 
 function App() {
-  const { token, loadFromStorage } = useAuthStore();
+  const { token, loadFromStorage, initialized } = useAuthStore();
 
   useEffect(() => {
     loadFromStorage();
   }, [loadFromStorage]);
+
+  if (!initialized) {
+    return null;
+  }
 
   return (
     <Router>

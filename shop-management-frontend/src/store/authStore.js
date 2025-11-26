@@ -6,12 +6,15 @@ export const useAuthStore = create((set) => ({
   owner: null,
   loading: false,
   error: null,
+  initialized: false,
 
   loadFromStorage: () => {
     const token = localStorage.getItem('token');
     const owner = localStorage.getItem('owner');
     if (token && owner) {
-      set({ token, owner: JSON.parse(owner) });
+      set({ token, owner: JSON.parse(owner), initialized: true });
+    } else {
+      set({ initialized: true });
     }
   },
 
