@@ -158,3 +158,115 @@ exports.getOrderStats = async (req, res) => {
     res.status(500).json({ message: 'Error fetching stats', error: error.message });
   }
 };
+
+// Create order from FinSathi app (customer-facing)
+exports.createOrderFromApp = async (req, res) => {
+  try {
+    const { shopId, items, deliveryAddress, paymentMethod, notes, deliveryCoordinates } = req.body;
+
+    if (!shopId || !Array.isArray(items) || items.length === 0 || !deliveryAddress || !paymentMethod) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    const shop = await Shop.findById(shopId);
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    let totalAmount = 0;
+
+    const orderItems = [];
+    for (const item of items) {
+      const menuItemId = item.menuItemId || item.menuItem || item.id;
+      const quantity = item.quantity || 1;
+      const price = item.price || 0;
+
+      const itemTotal = typeof item.totalPrice === 'number'
+        ? item.totalPrice
+        : price * quantity;
+
+      totalAmount += itemTotal;
+
+      orderItems.push({
+        menuItemId,
+        name: item.name,
+        price,
+        quantity,
+        customizations: item.customizations || null,
+        specialInstructions: item.specialInstructions || '',
+        totalPrice: itemTotal,
+      });
+    }
+
+    const deliveryFee = typeof shop.deliveryFee === 'number' ? shop.deliveryFee : 0;
+    const discount = 0;
+    const finalAmount = totalAmount + deliveryFee - discount;
+
+    const order = await ShopOrder.create({
+      orderId: `ORD-${Date.now()}`,
+      shopId: shop._id,
+      userId: (req.user && req.user.id) || 'anonymous',
+      items: orderItems,
+      totalAmount,
+      deliveryFee,
+      discount,
+      finalAmount,
+      deliveryAddress,
+      deliveryCoordinates: deliveryCoordinates || undefined,
+      status: 'placed',
+      paymentMethod,
+      paymentStatus: paymentMethod === 'cashOnDelivery' ? 'pending' : 'completed',
+      notes,
+    });
+
+    res.status(201).json(order);
+  } catch (error) {
+    res.status(500).json({ message: 'Error creating order', error: error.message });
+  }
+};
+
+// Get orders for the logged-in user (customer-facing)
+exports.getUserOrders = async (req, res) => {
+  try {
+    const userId = req.user && req.user.id;
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const orders = await ShopOrder.find({ userId }).sort({ createdAt: -1 });
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching user orders', error: error.message });
+  }
+};
+
+// Rate an order (customer-facing)
+exports.rateOrder = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { rating, review } = req.body;
+    const userId = req.user && req.user.id;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ message: 'Rating must be between 1 and 5' });
+    }
+
+    const order = await ShopOrder.findOne({ _id: orderId, userId });
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    order.rating = rating;
+    order.review = review || order.review;
+    order.updatedAt = new Date();
+    await order.save();
+
+    res.json({ message: 'Order rated successfully', order });
+  } catch (error) {
+    res.status(500).json({ message: 'Error rating order', error: error.message });
+  }
+};
