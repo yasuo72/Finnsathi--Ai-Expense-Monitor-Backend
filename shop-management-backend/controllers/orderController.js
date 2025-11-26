@@ -255,7 +255,10 @@ exports.rateOrder = async (req, res) => {
       return res.status(400).json({ message: 'Rating must be between 1 and 5' });
     }
 
-    const order = await ShopOrder.findOne({ _id: orderId, userId });
+    const order = await ShopOrder.findOne({
+      userId,
+      $or: [{ _id: orderId }, { orderId }],
+    });
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
     }
@@ -264,6 +267,39 @@ exports.rateOrder = async (req, res) => {
     order.review = review || order.review;
     order.updatedAt = new Date();
     await order.save();
+
+    // Recalculate shop rating based on all rated orders for this shop
+    if (order.shopId) {
+      const ratedOrders = await ShopOrder.find({
+        shopId: order.shopId,
+        rating: { $exists: true, $ne: null },
+      });
+
+      if (ratedOrders.length > 0) {
+        const totalRating = ratedOrders.reduce(
+          (sum, o) => sum + (o.rating || 0),
+          0,
+        );
+        const averageRating = totalRating / ratedOrders.length;
+
+        const shop = await Shop.findById(order.shopId);
+        if (shop) {
+          shop.rating = averageRating;
+          shop.totalReviews = ratedOrders.length;
+          if (shop.stats && typeof shop.stats === 'object') {
+            shop.stats.averageRating = averageRating;
+          }
+          await shop.save();
+        }
+
+        return res.json({
+          message: 'Order rated successfully',
+          order,
+          shopRating: averageRating,
+          totalReviews: ratedOrders.length,
+        });
+      }
+    }
 
     res.json({ message: 'Order rated successfully', order });
   } catch (error) {
