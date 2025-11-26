@@ -62,7 +62,9 @@ export default function ShopPage() {
     formDataWithFile.append('image', file);
 
     try {
-      const response = await api.post('/shops/upload-image', formDataWithFile);
+      const response = await api.post('/shops/upload-image', formDataWithFile, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       setFormData(prev => ({ ...prev, imageUrl: response.data.imageUrl }));
       toast.success('Image uploaded successfully');
     } catch (error) {
