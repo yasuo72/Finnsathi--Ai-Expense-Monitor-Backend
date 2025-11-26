@@ -14,9 +14,13 @@ const app = express();
 
 // Middleware
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://finnsathi-shop-management.vercel.app', /\.railway\.app$/]
-    : process.env.CORS_ORIGIN || '*',
+  origin: [
+    'https://finnsathi-shop-management.vercel.app',
+    'https://finnsathi-ai-expense-monitor-backen-iota.vercel.app',
+    'https://finnsathi-ai-expense-monitor-backen-phi.vercel.app',
+    /\.vercel\.app$/,
+    /\.railway\.app$/,
+  ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
