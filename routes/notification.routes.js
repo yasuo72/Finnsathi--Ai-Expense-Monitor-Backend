@@ -26,6 +26,8 @@ router.post('/sync', syncNotifications);
 router.get('/unread-count', getUnreadCount);
 router.get('/:id', getNotification);
 router.patch('/:id/read', markAsRead);
+// Allow both PATCH and PUT for marking a single notification as read
+router.put('/:id/read', markAsRead);
 router.patch('/read-all', markAllAsRead);
 // Allow both PATCH and PUT for marking all notifications as read
 router.put('/read-all', markAllAsRead);
