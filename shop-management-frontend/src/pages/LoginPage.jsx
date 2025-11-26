@@ -12,18 +12,28 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    if (!email || !password) {
+      toast.error('Please enter email and password');
+      return;
+    }
+
     try {
       console.log('API URL:', process.env.REACT_APP_API_URL);
-      console.log('Attempting login with:', { email, password });
+      console.log('Attempting login with:', { email });
       await login(email, password);
+      console.log('Login successful!');
       toast.success('Login successful!');
       navigate('/dashboard');
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('Full error object:', error);
       console.error('Error response:', error.response);
       console.error('Error status:', error.response?.status);
       console.error('Error data:', error.response?.data);
-      toast.error(error.response?.data?.message || error.message || 'Login failed');
+      const errorMsg = error.response?.data?.message || error.message || 'Login failed';
+      console.error('Showing error:', errorMsg);
+      toast.error(errorMsg);
     }
   };
 

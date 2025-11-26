@@ -23,12 +23,28 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    if (!formData.name || !formData.email || !formData.phone || !formData.password) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+
     try {
+      console.log('API URL:', process.env.REACT_APP_API_URL);
+      console.log('Attempting registration with:', { email: formData.email });
       await register(formData);
+      console.log('Registration successful!');
       toast.success('Registration successful!');
       navigate('/dashboard');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Registration failed');
+      console.error('Full error object:', error);
+      console.error('Error response:', error.response);
+      console.error('Error status:', error.response?.status);
+      console.error('Error data:', error.response?.data);
+      const errorMsg = error.response?.data?.message || error.message || 'Registration failed';
+      console.error('Showing error:', errorMsg);
+      toast.error(errorMsg);
     }
   };
 
