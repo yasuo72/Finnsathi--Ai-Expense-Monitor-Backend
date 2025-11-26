@@ -38,7 +38,13 @@ export default function OrdersPage() {
       const response = await api.get('/orders', { params });
       setOrders(response.data.orders);
     } catch (error) {
-      toast.error('Failed to load orders');
+      if (error.response?.status === 404) {
+        // No shop created yet for this owner - show empty orders instead of error
+        console.warn('No shop found when loading orders; showing empty orders list.');
+        setOrders([]);
+      } else {
+        toast.error('Failed to load orders');
+      }
     } finally {
       setLoading(false);
     }

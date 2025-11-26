@@ -27,7 +27,13 @@ export default function MenuPage() {
       const response = await api.get('/menu');
       setMenuItems(response.data);
     } catch (error) {
-      toast.error('Failed to load menu items');
+      if (error.response?.status === 404) {
+        // No shop created yet for this owner - show empty menu instead of error
+        console.warn('No shop found when loading menu; showing empty menu list.');
+        setMenuItems([]);
+      } else {
+        toast.error('Failed to load menu items');
+      }
     } finally {
       setLoading(false);
     }
