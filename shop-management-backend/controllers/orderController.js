@@ -1,6 +1,7 @@
 const ShopOrder = require('../models/ShopOrder');
 const Shop = require('../models/Shop');
 const MenuItem = require('../models/MenuItem');
+const ShopNotification = require('../models/ShopNotification');
 
 // Get shop orders
 exports.getShopOrders = async (req, res) => {
@@ -234,6 +235,26 @@ exports.createOrderFromApp = async (req, res) => {
         paymentMethod === 'cashOnDelivery' ? 'pending' : 'completed',
       notes,
     });
+
+    // Create a notification for the shop owner about this new order
+    try {
+      if (shop.ownerId) {
+        const title = 'New order received';
+        const customerName = (order.customer && (order.customer.name || order.customer.phone)) || 'Customer';
+        const message = `Order ${order.orderId} from ${customerName}`;
+
+        await ShopNotification.create({
+          ownerId: shop.ownerId,
+          shopId: shop._id,
+          orderId: order._id,
+          type: 'order',
+          title,
+          message,
+        });
+      }
+    } catch (notifyError) {
+      console.error('Failed to create shop notification for new order:', notifyError);
+    }
 
     res.status(201).json(order);
   } catch (error) {

@@ -57,11 +57,13 @@ const authRoutes = require('./routes/auth.routes');
 const shopRoutes = require('./routes/shop.routes');
 const menuRoutes = require('./routes/menu.routes');
 const orderRoutes = require('./routes/order.routes');
+const notificationRoutes = require('./routes/notification.routes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/shops', shopRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
