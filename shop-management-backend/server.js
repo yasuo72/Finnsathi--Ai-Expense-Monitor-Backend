@@ -18,6 +18,8 @@ const corsOptions = {
     'https://finnsathi-shop-management.vercel.app',
     'https://finnsathi-ai-expense-monitor-backen-iota.vercel.app',
     'https://finnsathi-ai-expense-monitor-backen-phi.vercel.app',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
     /\.vercel\.app$/,
     /\.railway\.app$/,
   ],

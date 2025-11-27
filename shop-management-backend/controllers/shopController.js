@@ -1,6 +1,7 @@
 const Shop = require('../models/Shop');
 const MenuItem = require('../models/MenuItem');
 const ShopOrder = require('../models/ShopOrder');
+const ShopOwner = require('../models/ShopOwner');
 const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
 
@@ -49,6 +50,76 @@ exports.getMyShop = async (req, res) => {
   }
 };
 
+// Admin: get global stats across all shops and orders
+exports.getGlobalStats = async (req, res) => {
+  try {
+    const totalShops = await Shop.countDocuments();
+    const activeShops = await Shop.countDocuments({ isActive: true });
+    const openShops = await Shop.countDocuments({ isOpen: true });
+
+    const totalOrders = await ShopOrder.countDocuments();
+
+    const revenueAgg = await ShopOrder.aggregate([
+      { $group: { _id: null, totalRevenue: { $sum: '$finalAmount' } } },
+    ]);
+    const totalRevenue = revenueAgg[0]?.totalRevenue || 0;
+
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const todayOrders = await ShopOrder.countDocuments({ createdAt: { $gte: startOfToday } });
+    const todayRevenueAgg = await ShopOrder.aggregate([
+      { $match: { createdAt: { $gte: startOfToday } } },
+      { $group: { _id: null, totalRevenue: { $sum: '$finalAmount' } } },
+    ]);
+    const todayRevenue = todayRevenueAgg[0]?.totalRevenue || 0;
+
+    // Top shops by total revenue
+    const topShopsAgg = await ShopOrder.aggregate([
+      {
+        $group: {
+          _id: '$shopId',
+          totalOrders: { $sum: 1 },
+          totalRevenue: { $sum: '$finalAmount' },
+        },
+      },
+      { $sort: { totalRevenue: -1 } },
+      { $limit: 5 },
+    ]);
+
+    const shopIds = topShopsAgg.map((s) => s._id).filter(Boolean);
+    const shops = await Shop.find({ _id: { $in: shopIds } }).select('name location');
+    const shopsById = {};
+    shops.forEach((s) => {
+      shopsById[s._id.toString()] = s;
+    });
+
+    const topShops = topShopsAgg.map((entry) => {
+      const shop = shopsById[entry._id?.toString()] || {};
+      return {
+        shopId: entry._id,
+        name: shop.name || 'Unknown shop',
+        location: shop.location || '',
+        totalOrders: entry.totalOrders,
+        totalRevenue: entry.totalRevenue,
+      };
+    });
+
+    res.json({
+      totalShops,
+      activeShops,
+      openShops,
+      totalOrders,
+      totalRevenue,
+      todayOrders,
+      todayRevenue,
+      topShops,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching global stats', error: error.message });
+  }
+};
+
 // Get reviews for a shop based on rated orders (public)
 exports.getShopReviews = async (req, res) => {
   try {
@@ -92,6 +163,32 @@ exports.updateShop = async (req, res) => {
     res.json({ message: 'Shop updated successfully', shop });
   } catch (error) {
     res.status(500).json({ message: 'Error updating shop', error: error.message });
+  }
+};
+
+// Admin: get owner info for a shop
+exports.adminGetShopOwnerInfo = async (req, res) => {
+  try {
+    const { shopId } = req.params;
+    const shop = await Shop.findById(shopId);
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    if (!shop.ownerId) {
+      return res.status(404).json({ message: 'Owner not linked to this shop' });
+    }
+
+    const owner = await ShopOwner.findById(shop.ownerId).select(
+      'name email phone businessName businessType isVerified isActive createdAt'
+    );
+    if (!owner) {
+      return res.status(404).json({ message: 'Owner not found' });
+    }
+
+    res.json({ shopId: shop._id, owner });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching shop owner info', error: error.message });
   }
 };
 
@@ -236,6 +333,41 @@ exports.getAllShops = async (req, res) => {
     res.json(shops);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching shops', error: error.message });
+  }
+};
+
+// Admin: update shop flags (verify / open-close / block)
+exports.adminUpdateShop = async (req, res) => {
+  try {
+    const { shopId } = req.params;
+    const { isVerified, isOpen, isBlocked } = req.body;
+
+    const shop = await Shop.findById(shopId);
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    if (typeof isVerified === 'boolean') {
+      shop.isVerified = isVerified;
+    }
+    if (typeof isOpen === 'boolean') {
+      shop.isOpen = isOpen;
+    }
+    if (typeof isBlocked === 'boolean') {
+      shop.isBlocked = isBlocked;
+    }
+
+    shop.updatedAt = new Date();
+    await shop.save();
+
+    let owner = null;
+    if (shop.ownerId) {
+      owner = await ShopOwner.findById(shop.ownerId).select('name email phone businessName businessType isVerified isActive');
+    }
+
+    res.json({ message: 'Shop updated by admin', shop, owner });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating shop', error: error.message });
   }
 };
 

@@ -256,6 +256,58 @@ exports.getUserOrders = async (req, res) => {
   }
 };
 
+// Admin: get all orders across all shops
+exports.getAllOrdersAdmin = async (req, res) => {
+  try {
+    const { status, page = 1, limit = 50, shopId } = req.query;
+
+    const query = {};
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+    if (shopId) {
+      query.shopId = shopId;
+    }
+
+    const pageNumber = parseInt(page, 10) || 1;
+    const limitNumber = parseInt(limit, 10) || 50;
+    const skip = (pageNumber - 1) * limitNumber;
+
+    const orders = await ShopOrder.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNumber)
+      .lean();
+
+    const total = await ShopOrder.countDocuments(query);
+
+    // Attach basic shop info
+    const shopIds = [...new Set(orders.map((o) => o.shopId).filter(Boolean))];
+    const shops = await Shop.find({ _id: { $in: shopIds } }).select('name location');
+    const shopsById = {};
+    shops.forEach((s) => {
+      shopsById[s._id.toString()] = s;
+    });
+
+    const enrichedOrders = orders.map((order) => ({
+      ...order,
+      shop: shopsById[order.shopId?.toString()] || null,
+    }));
+
+    res.json({
+      orders: enrichedOrders,
+      pagination: {
+        page: pageNumber,
+        limit: limitNumber,
+        total,
+        pages: Math.ceil(total / limitNumber),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching admin orders', error: error.message });
+  }
+};
+
 // Rate an order (customer-facing)
 exports.rateOrder = async (req, res) => {
   try {

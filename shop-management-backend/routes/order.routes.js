@@ -7,6 +7,7 @@ const router = express.Router();
 router.get('/', authMiddleware, orderController.getShopOrders);
 router.post('/', authMiddleware, orderController.createOrderFromApp);
 router.get('/user', authMiddleware, orderController.getUserOrders);
+router.get('/admin/all', orderController.getAllOrdersAdmin);
 router.put('/:orderId/rate', authMiddleware, orderController.rateOrder);
 router.get('/:orderId', authMiddleware, orderController.getOrderDetails);
 router.put('/:orderId/status', authMiddleware, orderController.updateOrderStatus);

@@ -50,6 +50,10 @@ const shopSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  isBlocked: {
+    type: Boolean,
+    default: false,
+  },
   deliveryTimeMinutes: {
     type: Number,
     default: 30,

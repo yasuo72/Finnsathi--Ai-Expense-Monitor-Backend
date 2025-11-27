@@ -7,6 +7,9 @@ const router = express.Router();
 // Public routes (no authentication required)
 router.get('/', shopController.getAllShops);
 router.get('/:shopId/reviews', shopController.getShopReviews);
+router.get('/admin/stats', shopController.getGlobalStats);
+router.get('/admin/:shopId/owner', shopController.adminGetShopOwnerInfo);
+router.patch('/admin/:shopId', shopController.adminUpdateShop);
 
 // Protected routes (authentication required) - specific routes MUST come before generic routes
 router.get('/stats', authMiddleware, shopController.getShopStats);
