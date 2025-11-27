@@ -35,67 +35,68 @@ export default function ProfilePage() {
   };
 
   if (loading) {
-    return <div className="text-center py-12">Loading...</div>;
+    return <div className="text-center py-12 text-slate-300 text-sm">Loading profile...</div>;
   }
 
   return (
     <div className="max-w-2xl">
-      <div className="bg-white rounded-lg shadow p-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Profile Settings</h1>
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 md:p-8 shadow-lg shadow-slate-950/60">
+        <h1 className="text-2xl font-semibold text-slate-50 mb-2">Profile Settings</h1>
+        <p className="text-xs text-slate-400 mb-6">Update your personal and business details for this shop account.</p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+              <label className="block text-xs font-medium tracking-wide text-slate-300 mb-2">Full Name</label>
               <input
                 type="text"
                 name="name"
                 value={formData.name || ''}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900/60 text-sm text-slate-50 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              <label className="block text-xs font-medium tracking-wide text-slate-300 mb-2">Email</label>
               <input
                 type="email"
                 name="email"
                 value={formData.email || ''}
                 disabled
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900/40 text-sm text-slate-400 cursor-not-allowed"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+              <label className="block text-xs font-medium tracking-wide text-slate-300 mb-2">Phone</label>
               <input
                 type="tel"
                 name="phone"
                 value={formData.phone || ''}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900/60 text-sm text-slate-50 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Business Name</label>
+              <label className="block text-xs font-medium tracking-wide text-slate-300 mb-2">Business Name</label>
               <input
                 type="text"
                 name="businessName"
                 value={formData.businessName || ''}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900/60 text-sm text-slate-50 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Business Type</label>
+              <label className="block text-xs font-medium tracking-wide text-slate-300 mb-2">Business Type</label>
               <select
                 name="businessType"
                 value={formData.businessType || ''}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900/60 text-sm text-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition"
               >
                 <option value="restaurant">Restaurant</option>
                 <option value="cafe">Cafe</option>
@@ -109,9 +110,9 @@ export default function ProfilePage() {
           <button
             type="submit"
             disabled={saving}
-            className="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="inline-flex items-center space-x-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-sm font-medium text-white hover:from-cyan-400 hover:to-blue-500 disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/30"
           >
-            {saving && <Loader size={20} className="animate-spin" />}
+            {saving && <Loader size={18} className="animate-spin" />}
             <span>{saving ? 'Saving...' : 'Save Changes'}</span>
           </button>
         </form>

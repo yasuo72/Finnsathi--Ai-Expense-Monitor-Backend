@@ -74,31 +74,34 @@ export default function ShopPage() {
   };
 
   if (loading) {
-    return <div className="text-center py-12">Loading...</div>;
+    return <div className="text-center py-12 text-slate-300 text-sm">Loading shop...</div>;
   }
 
   return (
-    <div className="max-w-4xl">
-      <div className="bg-white rounded-lg shadow p-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">
+    <div className="max-w-4xl space-y-4">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 md:p-8 shadow-lg shadow-slate-950/60">
+        <h1 className="text-2xl font-semibold text-slate-50 mb-2">
           {shop ? 'Edit Shop' : 'Create Your Shop'}
         </h1>
+        <p className="text-xs text-slate-400 mb-6">
+          Configure your restaurant details, delivery settings and branding.
+        </p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Shop Image */}
           <div>
             <label
               htmlFor="shop-image"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-xs font-medium tracking-wide text-slate-300 mb-2"
             >
               Shop Image
             </label>
             <div className="flex items-center space-x-4">
               {formData.imageUrl && (
-                <img src={formData.imageUrl} alt="Shop" className="w-32 h-32 rounded-lg object-cover" />
+                <img src={formData.imageUrl} alt="Shop" className="w-32 h-32 rounded-xl object-cover border border-slate-700" />
               )}
-              <label className="flex items-center space-x-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
-                <Upload size={20} />
+              <label className="flex items-center space-x-2 px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 text-xs font-medium text-cyan-200 cursor-pointer hover:border-cyan-400 hover:text-cyan-100 hover:bg-slate-900/80 transition-colors">
+                <Upload size={18} />
                 <span>Upload Image</span>
                 <input
                   id="shop-image"
@@ -117,7 +120,7 @@ export default function ShopPage() {
             <div>
               <label
                 htmlFor="shop-name"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className="block text-xs font-medium tracking-wide text-slate-300 mb-2"
               >
                 Shop Name
               </label>
@@ -128,7 +131,7 @@ export default function ShopPage() {
                 value={formData.name || ''}
                 onChange={handleChange}
                 placeholder="Your shop name"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900/60 text-sm text-slate-50 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition"
                 required
               />
             </div>
@@ -136,7 +139,7 @@ export default function ShopPage() {
             <div>
               <label
                 htmlFor="shop-phone"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className="block text-xs font-medium tracking-wide text-slate-300 mb-2"
               >
                 Phone
               </label>
@@ -147,7 +150,7 @@ export default function ShopPage() {
                 value={formData.phone || ''}
                 onChange={handleChange}
                 placeholder="+91 98765 43210"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900/60 text-sm text-slate-50 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition"
                 required
               />
             </div>
@@ -155,7 +158,7 @@ export default function ShopPage() {
             <div>
               <label
                 htmlFor="shop-email"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className="block text-xs font-medium tracking-wide text-slate-300 mb-2"
               >
                 Email
               </label>
@@ -166,7 +169,7 @@ export default function ShopPage() {
                 value={formData.email || ''}
                 onChange={handleChange}
                 placeholder="shop@email.com"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900/60 text-sm text-slate-50 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition"
                 required
               />
             </div>
@@ -174,7 +177,7 @@ export default function ShopPage() {
             <div>
               <label
                 htmlFor="shop-location"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className="block text-xs font-medium tracking-wide text-slate-300 mb-2"
               >
                 Location
               </label>
@@ -185,7 +188,7 @@ export default function ShopPage() {
                 value={formData.location || ''}
                 onChange={handleChange}
                 placeholder="Shop address"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900/60 text-sm text-slate-50 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition"
                 required
               />
             </div>
@@ -193,7 +196,7 @@ export default function ShopPage() {
             <div>
               <label
                 htmlFor="shop-delivery-time"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className="block text-xs font-medium tracking-wide text-slate-300 mb-2"
               >
                 Delivery Time (minutes)
               </label>
@@ -203,14 +206,14 @@ export default function ShopPage() {
                 name="deliveryTimeMinutes"
                 value={formData.deliveryTimeMinutes || 30}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900/60 text-sm text-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition"
               />
             </div>
 
             <div>
               <label
                 htmlFor="shop-delivery-fee"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className="block text-xs font-medium tracking-wide text-slate-300 mb-2"
               >
                 Delivery Fee (₹)
               </label>
@@ -220,7 +223,7 @@ export default function ShopPage() {
                 name="deliveryFee"
                 value={formData.deliveryFee || 0}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900/60 text-sm text-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition"
               />
             </div>
           </div>
@@ -228,7 +231,7 @@ export default function ShopPage() {
           <div>
             <label
               htmlFor="shop-description"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-xs font-medium tracking-wide text-slate-300 mb-2"
             >
               Description
             </label>
@@ -239,16 +242,16 @@ export default function ShopPage() {
               onChange={handleChange}
               placeholder="Describe your shop..."
               rows="4"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900/60 text-sm text-slate-50 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition"
             />
           </div>
 
           <button
             type="submit"
             disabled={saving}
-            className="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+            className="inline-flex items-center space-x-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-sm font-medium text-white shadow-lg shadow-cyan-500/30 hover:from-cyan-400 hover:to-blue-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {saving && <Loader size={20} className="animate-spin" />}
+            {saving && <Loader size={18} className="animate-spin" />}
             <span>{saving ? 'Saving...' : 'Save Shop'}</span>
           </button>
         </form>
