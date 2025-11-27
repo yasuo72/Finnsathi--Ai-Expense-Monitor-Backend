@@ -1,17 +1,88 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, LogOut, BarChart3, ShoppingBag, UtensilsCrossed, Package, User, Bell, Settings } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { useNotificationStore } from '../store/notificationStore';
+import api from '../services/api';
+import toast from 'react-hot-toast';
 
 export default function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { owner, logout } = useAuthStore();
+  const [shopIsOpen, setShopIsOpen] = useState(null);
+  const [shopStatusLoading, setShopStatusLoading] = useState(false);
+  const { unreadCount, fetchNotifications } = useNotificationStore();
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  useEffect(() => {
+    const fetchShopStatus = async () => {
+      try {
+        const response = await api.get('/shops/my-shop');
+        if (response.data && typeof response.data.isOpen === 'boolean') {
+          setShopIsOpen(response.data.isOpen);
+        } else {
+          setShopIsOpen(true);
+        }
+      } catch (error) {
+        console.error('Failed to load shop status for header:', error.response?.data || error.message || error);
+      }
+    };
+
+    fetchShopStatus();
+  }, []);
+
+  useEffect(() => {
+    let previousUnread = 0;
+    let firstRun = true;
+
+    const checkNotifications = async () => {
+      const newCount = await fetchNotifications(10);
+      if (!firstRun && newCount > previousUnread) {
+        if (typeof document !== 'undefined' && document.hidden && typeof window !== 'undefined') {
+          if ('Notification' in window) {
+            if (Notification.permission === 'granted') {
+              // eslint-disable-next-line no-new
+              new Notification('New order received', {
+                body: 'Open FinSathi Shop to view the latest orders.',
+              });
+            } else if (Notification.permission === 'default') {
+              Notification.requestPermission();
+            }
+          }
+        }
+      }
+      previousUnread = newCount;
+      firstRun = false;
+    };
+
+    checkNotifications();
+    const interval = setInterval(checkNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  const handleToggleShopStatus = async () => {
+    try {
+      setShopStatusLoading(true);
+      const response = await api.put('/shops/toggle-status');
+      const isOpen = response.data?.isOpen;
+      if (typeof isOpen === 'boolean') {
+        setShopIsOpen(isOpen);
+        toast.success(isOpen ? 'Shop is now live' : 'Shop is now offline');
+      } else {
+        toast.error('Unexpected response while updating shop status');
+      }
+    } catch (error) {
+      console.error('Failed to toggle shop status:', error.response?.data || error.message || error);
+      toast.error(error.response?.data?.message || 'Failed to update shop status');
+    } finally {
+      setShopStatusLoading(false);
+    }
   };
 
   const navItems = [
@@ -98,9 +169,23 @@ export default function Layout({ children }) {
                   <h2 className="text-lg md:text-xl font-semibold text-slate-50">
                     {currentNavItem?.label || 'Dashboard'}
                   </h2>
-                  <span className="inline-flex items-center rounded-full border border-emerald-400/60 bg-emerald-500/10 px-2 py-[2px] text-[10px] font-medium text-emerald-300">
-                    Live
-                  </span>
+                  <button
+                    type="button"
+                    onClick={handleToggleShopStatus}
+                    disabled={shopStatusLoading || shopIsOpen === null}
+                    className={`inline-flex items-center rounded-full px-2 py-[2px] text-[10px] font-medium border transition-colors ${
+                      shopIsOpen
+                        ? 'border-emerald-400/60 bg-emerald-500/10 text-emerald-300'
+                        : 'border-slate-500 bg-slate-800/80 text-slate-300'
+                    } ${shopStatusLoading ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}
+                  >
+                    <span
+                      className={`mr-1 h-1.5 w-1.5 rounded-full ${
+                        shopIsOpen ? 'bg-emerald-400' : 'bg-slate-400'
+                      }`}
+                    />
+                    {shopIsOpen ? 'Live' : 'Paused'}
+                  </button>
                 </div>
               </div>
               <div className="flex items-center space-x-3 md:space-x-4">
@@ -110,13 +195,20 @@ export default function Layout({ children }) {
                 </div>
                 <button
                   type="button"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-700 bg-slate-800/80 text-slate-200 hover:border-cyan-400/70 hover:text-cyan-300 hover:shadow-[0_0_0_1px_rgba(34,211,238,0.8)] transition-all"
+                  onClick={() => navigate('/notifications')}
+                  className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-700 bg-slate-800/80 text-slate-200 hover:border-cyan-400/70 hover:text-cyan-300 hover:shadow-[0_0_0_1px_rgba(34,211,238,0.8)] transition-all"
                   aria-label="Notifications"
                 >
                   <Bell size={18} />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 inline-flex min-w-[16px] h-4 items-center justify-center rounded-full bg-cyan-500 text-[10px] font-semibold text-slate-950 px-1">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </button>
                 <button
                   type="button"
+                  onClick={() => navigate('/profile')}
                   className="hidden md:inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-700 bg-slate-800/80 text-slate-200 hover:border-blue-400/70 hover:text-blue-300 transition-all"
                   aria-label="Settings"
                 >
