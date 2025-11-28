@@ -8,6 +8,7 @@ router.use(protect);
 
 // Receipt scanning routes
 router.post('/direct-integration', receiptController.directIntegration);
+router.post('/tabscanner-scan', receiptController.scanWithTabscanner);
 router.get('/status', receiptController.getServiceStatus);
 router.get('/', receiptController.getReceiptTransactions);
 router.get('/:id', receiptController.getReceiptTransaction);

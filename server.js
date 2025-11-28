@@ -23,6 +23,7 @@ const chatbotRoutes = require('./routes/chatbot.routes');
 const predictionRoutes = require('./routes/prediction.routes');
 const uploadRoutes = require('./routes/upload.routes');
 const geminiRoutes = require('./routes/gemini.routes');
+const receiptRoutes = require('./routes/receipt.routes');
 
 // Initialize Express app
 const app = express();
@@ -216,6 +217,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/predictions', predictionRoutes);
 app.use('/api/gemini', geminiRoutes);
+app.use('/api/receipts', receiptRoutes);
 
 // Proxy shop routes to Shop Management Backend
 const axios = require('axios');

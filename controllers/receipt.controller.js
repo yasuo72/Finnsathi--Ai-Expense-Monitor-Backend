@@ -2,6 +2,8 @@ const Transaction = require('../models/Transaction');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const axios = require('axios');
+const FormData = require('form-data');
 
 // @desc    Scan receipt image and extract data - Direct integration approach
 // @route   POST /api/receipts/direct-integration
@@ -61,6 +63,168 @@ exports.directIntegration = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Scan receipt image using Tabscanner OCR and return structured data
+// @route   POST /api/receipts/tabscanner-scan
+// @access  Private
+exports.scanWithTabscanner = async (req, res) => {
+  try {
+    const TABSCANNER_API_KEY = process.env.TABSCANNER_API_KEY;
+    const TABSCANNER_API_BASE_URL = process.env.TABSCANNER_API_BASE_URL || 'https://api.tabscanner.com';
+
+    if (!TABSCANNER_API_KEY) {
+      return res.status(500).json({
+        success: false,
+        message: 'Tabscanner API key is not configured on the server'
+      });
+    }
+
+    // File can be sent under different field names, try common ones
+    const uploadedFile =
+      req.files && (req.files.file || req.files.receiptImage || req.files.receiptFile);
+
+    if (!uploadedFile) {
+      return res.status(400).json({
+        success: false,
+        message: 'No receipt image file provided'
+      });
+    }
+
+    const formData = new FormData();
+
+    // Use temp file path when available (production) or buffer in development
+    if (uploadedFile.tempFilePath) {
+      formData.append('file', fs.createReadStream(uploadedFile.tempFilePath), {
+        filename: uploadedFile.name,
+        contentType: uploadedFile.mimetype
+      });
+    } else {
+      formData.append('file', uploadedFile.data, {
+        filename: uploadedFile.name,
+        contentType: uploadedFile.mimetype
+      });
+    }
+
+    // Hint document type to Tabscanner
+    formData.append('documentType', 'receipt');
+
+    // Submit receipt image to Tabscanner
+    const processResponse = await axios.post(
+      `${TABSCANNER_API_BASE_URL}/api/2/process`,
+      formData,
+      {
+        headers: {
+          ...formData.getHeaders(),
+          apikey: TABSCANNER_API_KEY
+        },
+        timeout: 30000
+      }
+    );
+
+    const processData = processResponse.data || {};
+    const token = processData.token;
+
+    if (!token) {
+      return res.status(502).json({
+        success: false,
+        message: 'Failed to obtain processing token from Tabscanner',
+        data: processData
+      });
+    }
+
+    // Short-polling for the result
+    const maxAttempts = 10;
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    let resultData = null;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const resultResponse = await axios.get(
+        `${TABSCANNER_API_BASE_URL}/api/result/${token}`,
+        {
+          headers: { apikey: TABSCANNER_API_KEY },
+          timeout: 20000
+        }
+      );
+
+      const body = resultResponse.data || {};
+      const candidate = body.result || body;
+
+      // Consider result ready when key fields are present
+      if (candidate && (candidate.total != null || candidate.establishment || candidate.status === 'done')) {
+        resultData = candidate;
+        break;
+      }
+
+      await delay(1000);
+    }
+
+    if (!resultData) {
+      return res.status(504).json({
+        success: false,
+        message: 'Timed out while waiting for Tabscanner result'
+      });
+    }
+
+    // Map Tabscanner result to normalized structure used by the app
+    const merchant = resultData.establishment || resultData.merchant || null;
+    const date = resultData.date || null;
+    const total =
+      typeof resultData.total !== 'undefined' && resultData.total !== null
+        ? Number(resultData.total)
+        : null;
+    const subtotal =
+      typeof resultData.subTotal !== 'undefined' && resultData.subTotal !== null
+        ? Number(resultData.subTotal)
+        : null;
+    const tax =
+      typeof resultData.tax !== 'undefined' && resultData.tax !== null
+        ? Number(resultData.tax)
+        : null;
+
+    const lineItems = Array.isArray(resultData.lineItems) ? resultData.lineItems : [];
+
+    const items = lineItems.map((item) => ({
+      name: item.desc || item.description || item.name || '',
+      quantity:
+        typeof item.qty !== 'undefined' && item.qty !== null
+          ? Number(item.qty)
+          : 1,
+      price:
+        typeof item.price !== 'undefined' && item.price !== null
+          ? Number(item.price)
+          : null,
+      totalPrice:
+        typeof item.lineTotal !== 'undefined' && item.lineTotal !== null
+          ? Number(item.lineTotal)
+          : null
+    }));
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        merchant,
+        date,
+        total,
+        subtotal,
+        tax,
+        items,
+        payment_method: resultData.paymentMethod || null,
+        receipt_number: resultData.receiptNumber || null,
+        raw_text: resultData.rawText || null
+      },
+      metadata: {
+        tabscannerToken: token
+      }
+    });
+  } catch (error) {
+    console.error('Error in scanWithTabscanner:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process receipt with Tabscanner',
       error: error.message
     });
   }
@@ -143,7 +307,8 @@ exports.getReceiptTransactions = async (req, res) => {
     res.status(200).json({
       success: true,
       count: transactions.length,
-      data: transactions
+      data: transactions,
+      receipts: transactions
     });
   } catch (error) {
     console.error('Error in getReceiptTransactions:', error);
@@ -179,7 +344,8 @@ exports.getReceiptTransaction = async (req, res) => {
     
     res.status(200).json({
       success: true,
-      data: transaction
+      data: transaction,
+      receipt: transaction
     });
   } catch (error) {
     console.error('Error in getReceiptTransaction:', error);
