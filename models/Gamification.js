@@ -15,7 +15,7 @@ const ChallengeSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['daily', 'weekly', 'monthly', 'one-time'],
+    enum: ['daily', 'weekly', 'monthly', 'one-time', 'weekend', 'milestone'],
     default: 'daily'
   },
   category: {
