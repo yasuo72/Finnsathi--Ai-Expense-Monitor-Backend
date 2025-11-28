@@ -187,21 +187,58 @@ exports.scanWithTabscanner = async (req, res) => {
 
     const lineItems = Array.isArray(resultData.lineItems) ? resultData.lineItems : [];
 
-    const items = lineItems.map((item) => ({
-      name: item.desc || item.description || item.name || '',
-      quantity:
+    const items = lineItems.map((item) => {
+      const rawQty =
         typeof item.qty !== 'undefined' && item.qty !== null
-          ? Number(item.qty)
-          : 1,
-      price:
-        typeof item.price !== 'undefined' && item.price !== null
-          ? Number(item.price)
-          : null,
-      totalPrice:
+          ? item.qty
+          : typeof item.quantity !== 'undefined' && item.quantity !== null
+            ? item.quantity
+            : 1;
+
+      const quantity = Number(rawQty) || 1;
+
+      const rawLineTotal =
         typeof item.lineTotal !== 'undefined' && item.lineTotal !== null
-          ? Number(item.lineTotal)
-          : null
-    }));
+          ? item.lineTotal
+          : typeof item.total !== 'undefined' && item.total !== null
+            ? item.total
+            : null;
+
+      const lineTotal =
+        rawLineTotal !== null && typeof rawLineTotal !== 'undefined'
+          ? Number(rawLineTotal)
+          : null;
+
+      const rawPrice =
+        typeof item.price !== 'undefined' && item.price !== null
+          ? item.price
+          : typeof item.unitPrice !== 'undefined' && item.unitPrice !== null
+            ? item.unitPrice
+            : null;
+
+      let price = rawPrice !== null && typeof rawPrice !== 'undefined'
+        ? Number(rawPrice)
+        : null;
+
+      if ((price === null || Number.isNaN(price)) && lineTotal !== null) {
+        if (quantity && quantity > 0) {
+          price = lineTotal / quantity;
+        } else {
+          price = lineTotal;
+        }
+      }
+
+      if (price !== null && Number.isNaN(price)) {
+        price = null;
+      }
+
+      return {
+        name: item.desc || item.description || item.name || '',
+        quantity,
+        price,
+        totalPrice: lineTotal
+      };
+    });
 
     return res.status(200).json({
       success: true,
