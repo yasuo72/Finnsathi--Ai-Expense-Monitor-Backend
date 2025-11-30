@@ -1,6 +1,7 @@
 const Transaction = require('../models/Transaction');
-const NotificationService = require('../services/notification.service');
 const Budget = require('../models/Budget');
+const NotificationService = require('../services/notification.service');
+const GamificationService = require('../services/gamification.service');
 const mongoose = require('mongoose');
 
 // @desc    Get all transactions
@@ -129,6 +130,13 @@ exports.createTransaction = async (req, res) => {
     } catch (notificationError) {
       // Log notification error but don't fail the transaction creation
       console.error('Error processing notifications:', notificationError);
+    }
+    
+    // Update gamification (XP, challenges, achievements)
+    try {
+      await GamificationService.updateAfterTransaction(req.user.id, transaction);
+    } catch (gamificationError) {
+      console.error('Error updating gamification:', gamificationError);
     }
     
     res.status(201).json({

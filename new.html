@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus Tracking App Flowchart</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #2c3e50;
+            line-height: 1.6;
+            padding: 20px;
+            min-height: 100vh;
+            animation: backgroundShift 10s ease-in-out infinite alternate;
+        }
+        
+        @keyframes backgroundShift {
+            0% { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+            50% { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+            100% { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 25px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            animation: shine 3s infinite;
+        }
+        
+        @keyframes shine {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+        
+        .content {
+            padding: 30px;
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+        }
+        
+        .flowchart-container {
+            background: linear-gradient(145deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.1), 0 8px 32px rgba(0, 0, 0, 0.1);
+            min-height: 450px;
+            max-height: 550px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            position: relative;
+            cursor: grab;
+        }
+        
+        .flowchart-container:active {
+            cursor: grabbing;
+        }
+        
+        .zoom-controls {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            gap: 8px;
+            z-index: 10;
+        }
+        
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .zoom-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .zoom-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .mermaid {
+            transition: transform 0.3s ease;
+            transform-origin: center center;
+        }
+        
+        .flowchart-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+            pointer-events: none;
+            border-radius: 20px;
+        }
+        
+        .sidebar {
+            background: linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(230,245,255,0.9) 100%);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255,255,255,0.6);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+        }
+        
+        h2 {
+            color: #667eea;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid transparent;
+            background: linear-gradient(90deg, #667eea, #764ba2) bottom/100% 3px no-repeat;
+            font-weight: 600;
+            font-size: 1.4rem;
+        }
+        
+        h3 {
+            color: #764ba2;
+            margin: 25px 0 15px;
+            font-weight: 600;
+            position: relative;
+        }
+        
+        h3::before {
+            content: '✨';
+            margin-right: 8px;
+            font-size: 1.1em;
+        }
+        
+        .description {
+            margin-bottom: 25px;
+        }
+        
+        .features {
+            margin-top: 30px;
+        }
+        
+        .features ul {
+            list-style: none;
+        }
+        
+        .features li {
+            padding: 8px 0;
+            position: relative;
+            padding-left: 25px;
+            color: #495057;
+            transition: color 0.3s ease;
+        }
+        
+        .features li::before {
+            content: '🚀';
+            position: absolute;
+            left: 0;
+            top: 8px;
+        }
+        
+        .features li:hover {
+            color: #667eea;
+        }
+        
+        .legend {
+            margin-top: 30px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(240,248,255,0.8));
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .legend-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+            background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(240,248,255,0.95));
+        }
+        
+        .color-box {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        
+        .process { background-color: #e1f5fe; border: 2px solid #01579b; }
+        .decision { background-color: #fff3e0; border: 2px solid #ef6c00; }
+        .data { background-color: #e8f5e9; border: 2px solid #2e7d32; }
+        .endpoint { background-color: #fce4ec; border: 2px solid #c2185b; }
+        .subprocess { background: transparent; border: 2px dashed #7e57c2; }
+        
+        footer {
+            text-align: center;
+            padding: 25px;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            font-size: 0.95rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        footer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+        }
+        
+        @media (max-width: 900px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                order: -1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Bus Tracking Application Flow</h1>
+            <p class="subtitle">Real-time location sharing with AI-powered predictions</p>
+        </header>
+        
+        <div class="content">
+            <div class="flowchart-container" id="flowchart-container">
+                <div class="zoom-controls">
+                    <button class="zoom-btn" id="zoom-in" title="Zoom In">+</button>
+                    <button class="zoom-btn" id="zoom-out" title="Zoom Out">−</button>
+                    <button class="zoom-btn" id="zoom-reset" title="Reset Zoom">⌂</button>
+                    <button class="zoom-btn" id="download-btn" title="Download HD Image">📥</button>
+                </div>
+                <div class="mermaid" id="mermaid-diagram">
+flowchart TB
+    A[📱 User Opens App] --> B{🔐 Login?}
+    B -->|✅ Success| C[🎯 Choose Role]
+    B -->|❌ Fail| B
+    
+    C -->|📍 Sharer| S1[🚌 Select Bus & Route]
+    C -->|👁️ Recipient| R1[🔍 Choose Bus to Track]
+    
+    subgraph row1[" "]
+        direction LR
+        S1 --> S2[▶️ Start Sharing]
+        S2 --> S3[📡 GPS Broadcasting]
+        S3 --> S4[💾 Store in MongoDB]
+    end
+    
+    subgraph row2[" "]
+        direction LR
+        R1 --> R2{📍 Live Data?}
+        R2 -->|Yes| R3[🗺️ Show Live Map]
+        R2 -->|No| R4[🔮 Show Prediction]
+    end
+    
+    subgraph row3[" "]
+        direction LR
+        S5[⏹️ Stop Sharing] --> S6{👥 Other Sharers?}
+        S6 -->|No| AI1[🤖 AI Mode ON]
+        S6 -->|Yes| S3
+    end
+    
+    subgraph row4[" "]
+        direction LR
+        R3 --> T1[💰 Send Tip]
+        R4 --> T1
+        T1 --> T2[🏆 Update Points]
+        T2 --> L1[📊 Leaderboard]
+    end
+    
+    subgraph row5[" "]
+        direction LR
+        AI1 --> AI2[📈 Calculate Speed]
+        AI2 --> AI3[⏰ Predict ETA]
+        AI3 --> AI4[📍 Serve Location]
+    end
+    
+    S3 --> S5
+    AI4 --> R2
+
+    %% Enhanced Styling for PPT
+    classDef default fill:#f8f9fa,stroke:#6c757d,stroke-width:2px,color:#495057
+    classDef process fill:#667eea,stroke:#4c63d2,stroke-width:2px,color:white
+    classDef decision fill:#f093fb,stroke:#e91e63,stroke-width:2px,color:white
+    classDef data fill:#4facfe,stroke:#0288d1,stroke-width:2px,color:white
+    classDef endpoint fill:#43e97b,stroke:#00c851,stroke-width:2px,color:white
+    
+    class A,C,S1,S2,S3,S4,S5,R1,R3,R4,AI1,AI2,AI3,AI4,T1,T2 process
+    class B,R2,S6 decision
+    class S4 data
+    class L1 endpoint
+                </div>
+            </div>
+            
+            <div class="sidebar">
+                <h2>Flowchart Details</h2>
+                
+                <div class="description">
+                    <h3>About This Flowchart</h3>
+                    <p>This diagram illustrates the user flow for a bus tracking application with real-time location sharing and AI-powered predictions. The app allows users to either share their location as a "Sharer" or view bus locations as a "Recipient".</p>
+                </div>
+                
+                <div class="legend">
+                    <h3>Legend</h3>
+                    <div class="legend-item">
+                        <div class="color-box process"></div>
+                        <span>Process</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="color-box decision"></div>
+                        <span>Decision Point</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="color-box data"></div>
+                        <span>Data Storage</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="color-box endpoint"></div>
+                        <span>Endpoint/Output</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="color-box subprocess"></div>
+                        <span>Sub-process</span>
+                    </div>
+                </div>
+                
+                <div class="features">
+                    <h3>Key Features</h3>
+                    <ul>
+                        <li>Real-time GPS tracking</li>
+                        <li>AI-powered predictions</li>
+                        <li>Reward system for sharers</li>
+                        <li>Leaderboard and badges</li>
+                        <li>Live location broadcasting</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Bus Tracking Application Flowchart | Designed with Mermaid.js</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Mermaid with SVG output for crisp scaling
+            mermaid.initialize({
+                startOnLoad: true,
+                theme: 'base',
+                themeVariables: {
+                    primaryColor: '#fff',
+                    primaryBorderColor: '#333',
+                    primaryTextColor: '#333',
+                    lineColor: '#333',
+                    fontSize: '16px'
+                },
+                flowchart: {
+                    useMaxWidth: false,
+                    htmlLabels: true,
+                    curve: 'basis'
+                },
+                svgId: 'mermaid-svg'
+            });
+
+            // Zoom and Pan functionality
+            let currentZoom = 1;
+            let currentX = 0;
+            let currentY = 0;
+            let isDragging = false;
+            let startX = 0;
+            let startY = 0;
+
+            const container = document.getElementById('flowchart-container');
+            const diagram = document.getElementById('mermaid-diagram');
+            const zoomInBtn = document.getElementById('zoom-in');
+            const zoomOutBtn = document.getElementById('zoom-out');
+            const zoomResetBtn = document.getElementById('zoom-reset');
+            const downloadBtn = document.getElementById('download-btn');
+
+            function updateTransform() {
+                diagram.style.transform = `translate(${currentX}px, ${currentY}px) scale(${currentZoom})`;
+            }
+
+            // Zoom In
+            zoomInBtn.addEventListener('click', function() {
+                currentZoom = Math.min(currentZoom * 1.2, 3);
+                updateTransform();
+            });
+
+            // Zoom Out
+            zoomOutBtn.addEventListener('click', function() {
+                currentZoom = Math.max(currentZoom / 1.2, 0.5);
+                updateTransform();
+            });
+
+            // Reset Zoom
+            zoomResetBtn.addEventListener('click', function() {
+                currentZoom = 1;
+                currentX = 0;
+                currentY = 0;
+                updateTransform();
+            });
+
+            // Download functionality
+            downloadBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('Download button clicked');
+                
+                // Show immediate feedback
+                downloadBtn.style.background = 'linear-gradient(135deg, #43e97b, #38f9d7)';
+                downloadBtn.innerHTML = '⏳';
+                
+                // Wait for Mermaid to render completely
+                setTimeout(() => {
+                    // Try multiple selectors to find the SVG
+                    let svgElement = document.querySelector('#mermaid-diagram svg') || 
+                                    document.querySelector('.mermaid svg') || 
+                                    document.querySelector('svg');
+                    
+                    console.log('SVG Element found:', svgElement);
+                    
+                    if (!svgElement) {
+                        alert('Please wait for the diagram to fully load, then try again.');
+                        resetDownloadButton();
+                        return;
+                    }
+                    
+                    // Convert SVG to PNG
+                    convertSVGtoPNG(svgElement);
+                    
+                }, 1000);
+            });
+            
+            function convertSVGtoPNG(svgElement) {
+                try {
+                    // Get SVG dimensions
+                    const bbox = svgElement.getBBox();
+                    const svgRect = svgElement.getBoundingClientRect();
+                    
+                    let width = bbox.width || svgRect.width || 1200;
+                    let height = bbox.height || svgRect.height || 800;
+                    
+                    // High-resolution scaling
+                    const scale = 3;
+                    const canvasWidth = width * scale;
+                    const canvasHeight = height * scale;
+                    
+                    // Create canvas
+                    const canvas = document.createElement('canvas');
+                    canvas.width = canvasWidth;
+                    canvas.height = canvasHeight;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Set white background
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+                    
+                    // Clone and prepare SVG
+                    const svgClone = svgElement.cloneNode(true);
+                    svgClone.setAttribute('width', width);
+                    svgClone.setAttribute('height', height);
+                    
+                    // Add white background to SVG
+                    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    rect.setAttribute('width', '100%');
+                    rect.setAttribute('height', '100%');
+                    rect.setAttribute('fill', 'white');
+                    svgClone.insertBefore(rect, svgClone.firstChild);
+                    
+                    // Convert SVG to data URL
+                    const svgData = new XMLSerializer().serializeToString(svgClone);
+                    const svgDataUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+                    
+                    // Create image and draw to canvas
+                    const img = new Image();
+                    img.onload = function() {
+                        // Draw image scaled up for high resolution
+                        ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight);
+                        
+                        // Convert canvas to PNG and download
+                        canvas.toBlob(function(blob) {
+                            if (blob) {
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = 'bus-tracking-flowchart-HD.png';
+                                a.style.display = 'none';
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                URL.revokeObjectURL(url);
+                                
+                                console.log('PNG download completed');
+                                resetDownloadButton();
+                            } else {
+                                throw new Error('Failed to create PNG blob');
+                            }
+                        }, 'image/png', 1.0);
+                    };
+                    
+                    img.onerror = function() {
+                        console.error('Failed to load SVG as image');
+                        alert('PNG conversion failed. This might be due to browser security restrictions.');
+                        resetDownloadButton();
+                    };
+                    
+                    img.src = svgDataUrl;
+                    
+                } catch (error) {
+                    console.error('PNG conversion error:', error);
+                    alert('PNG conversion failed: ' + error.message);
+                    resetDownloadButton();
+                }
+            }
+            
+            function resetDownloadButton() {
+                downloadBtn.style.background = 'linear-gradient(135deg, #667eea, #764ba2)';
+                downloadBtn.innerHTML = '📥';
+            }
+
+            function processDownload(svgElement) {
+                try {
+                    console.log('Processing download for SVG:', svgElement);
+                    
+                    // Create a copy of the SVG
+                    const svgClone = svgElement.cloneNode(true);
+                    
+                    // Get SVG dimensions
+                    const svgRect = svgElement.getBoundingClientRect();
+                    let width = svgRect.width || 800;
+                    let height = svgRect.height || 600;
+                    
+                    // Try to get viewBox if available
+                    const viewBox = svgElement.getAttribute('viewBox');
+                    if (viewBox) {
+                        const [x, y, w, h] = viewBox.split(' ').map(Number);
+                        width = w || width;
+                        height = h || height;
+                    }
+                    
+                    // Set high-resolution dimensions
+                    const hdScale = 3;
+                    const hdWidth = width * hdScale;
+                    const hdHeight = height * hdScale;
+                    
+                    // Configure SVG for export
+                    svgClone.setAttribute('width', hdWidth);
+                    svgClone.setAttribute('height', hdHeight);
+                    svgClone.setAttribute('viewBox', `0 0 ${width} ${height}`);
+                    
+                    // Add white background
+                    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    rect.setAttribute('width', '100%');
+                    rect.setAttribute('height', '100%');
+                    rect.setAttribute('fill', 'white');
+                    svgClone.insertBefore(rect, svgClone.firstChild);
+                    
+                    // Convert to data URL and download
+                    const svgData = new XMLSerializer().serializeToString(svgClone);
+                    const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+                    
+                    // Try PNG conversion first
+                    const canvas = document.createElement('canvas');
+                    canvas.width = hdWidth;
+                    canvas.height = hdHeight;
+                    const ctx = canvas.getContext('2d');
+                    
+                    const img = new Image();
+                    img.onload = function() {
+                        ctx.drawImage(img, 0, 0, hdWidth, hdHeight);
+                        
+                        canvas.toBlob(function(blob) {
+                            if (blob) {
+                                downloadFile(blob, 'bus-tracking-flowchart-HD.png');
+                            } else {
+                                // Fallback to SVG
+                                downloadFile(svgBlob, 'bus-tracking-flowchart.svg');
+                            }
+                        }, 'image/png', 1.0);
+                    };
+                    
+                    img.onerror = function() {
+                        console.log('PNG conversion failed, downloading SVG');
+                        downloadFile(svgBlob, 'bus-tracking-flowchart.svg');
+                    };
+                    
+                    const svgUrl = URL.createObjectURL(svgBlob);
+                    img.src = svgUrl;
+                    
+                    // Cleanup URL after some time
+                    setTimeout(() => URL.revokeObjectURL(svgUrl), 10000);
+                    
+                } catch (error) {
+                    console.error('Download error:', error);
+                    alert('Download failed. Please try again.');
+                }
+            }
+
+            function downloadFile(blob, filename) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                console.log('Download initiated for:', filename);
+            }
+
+            function downloadSVG(svgElement) {
+                const svgData = new XMLSerializer().serializeToString(svgElement);
+                const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+                const url = URL.createObjectURL(svgBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'bus-tracking-flowchart.svg';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            // Mouse wheel zoom
+            container.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                const rect = container.getBoundingClientRect();
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                
+                const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+                const newZoom = Math.min(Math.max(currentZoom * zoomFactor, 0.5), 3);
+                
+                if (newZoom !== currentZoom) {
+                    currentZoom = newZoom;
+                    updateTransform();
+                }
+            });
+
+            // Pan functionality
+            container.addEventListener('mousedown', function(e) {
+                isDragging = true;
+                startX = e.clientX - currentX;
+                startY = e.clientY - currentY;
+                container.style.cursor = 'grabbing';
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (isDragging) {
+                    currentX = e.clientX - startX;
+                    currentY = e.clientY - startY;
+                    updateTransform();
+                }
+            });
+
+            document.addEventListener('mouseup', function() {
+                isDragging = false;
+                container.style.cursor = 'grab';
+            });
+
+            // Touch support for mobile
+            let lastTouchDistance = 0;
+            
+            container.addEventListener('touchstart', function(e) {
+                if (e.touches.length === 1) {
+                    isDragging = true;
+                    startX = e.touches[0].clientX - currentX;
+                    startY = e.touches[0].clientY - currentY;
+                } else if (e.touches.length === 2) {
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    lastTouchDistance = Math.sqrt(
+                        Math.pow(touch2.clientX - touch1.clientX, 2) +
+                        Math.pow(touch2.clientY - touch1.clientY, 2)
+                    );
+                }
+                e.preventDefault();
+            });
+
+            container.addEventListener('touchmove', function(e) {
+                if (e.touches.length === 1 && isDragging) {
+                    currentX = e.touches[0].clientX - startX;
+                    currentY = e.touches[0].clientY - startY;
+                    updateTransform();
+                } else if (e.touches.length === 2) {
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    const touchDistance = Math.sqrt(
+                        Math.pow(touch2.clientX - touch1.clientX, 2) +
+                        Math.pow(touch2.clientY - touch1.clientY, 2)
+                    );
+                    
+                    if (lastTouchDistance > 0) {
+                        const zoomFactor = touchDistance / lastTouchDistance;
+                        currentZoom = Math.min(Math.max(currentZoom * zoomFactor, 0.5), 3);
+                        updateTransform();
+                    }
+                    lastTouchDistance = touchDistance;
+                }
+                e.preventDefault();
+            });
+
+            container.addEventListener('touchend', function() {
+                isDragging = false;
+                lastTouchDistance = 0;
+            });
+        });
+    </script>
+</body>
+</html>

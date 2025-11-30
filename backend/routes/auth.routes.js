@@ -5,6 +5,7 @@ const {
   signin, 
   verifyOtp, 
   forgotPassword, 
+  verifyResetOtp,
   resetPassword, 
   googleAuth,
   getMe 
@@ -18,6 +19,7 @@ router.post('/signin', signin);
 router.post('/login', signin); // Add alias for compatibility
 router.post('/verify', verifyOtp);
 router.post('/forgot-password', forgotPassword);
+router.post('/verify-reset-otp', verifyResetOtp);
 router.post('/reset-password', resetPassword);
 router.post('/google', googleAuth); // Google authentication endpoint
 

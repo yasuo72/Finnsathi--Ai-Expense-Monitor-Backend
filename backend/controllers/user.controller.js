@@ -6,6 +6,8 @@ const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
+const cloudinary = require('../utils/cloudinary');
+const streamifier = require('streamifier');
 
 // @desc    Get user profile
 // @route   GET /api/users/profile
@@ -152,7 +154,10 @@ exports.updateProfile = async (req, res) => {
       }
       user.monthlyIncome = income;
     }
-    if (profilePicture) user.profilePicture = profilePicture;
+    // Update profile picture only if the new value looks like a full URL (e.g., Cloudinary)
+    if (profilePicture && /^https?:\/\//i.test(profilePicture)) {
+      user.profilePicture = profilePicture;
+    }
     
     // Update address if provided
     if (address) {
@@ -312,7 +317,8 @@ exports.uploadProfilePicture = async (req, res) => {
     if (useFileSystem) {
       // FILESYSTEM STORAGE METHOD
       // Make sure the uploads directory exists
-      const uploadsDir = './public/uploads';
+      // Use absolute path so it matches Express static middleware (server.js)
+      const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
       if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }
@@ -356,7 +362,7 @@ exports.uploadProfilePicture = async (req, res) => {
       
       // Delete old profile picture if it's not the default
       if (user.profilePicture && user.profilePicture !== 'default-profile.jpg') {
-        const oldFilePath = `./public${user.profilePicture}`;
+        const oldFilePath = path.join(__dirname, '..', 'public', user.profilePicture.replace('/uploads/', 'uploads/'));
         if (fs.existsSync(oldFilePath)) {
           fs.unlinkSync(oldFilePath);
         }
@@ -378,23 +384,53 @@ exports.uploadProfilePicture = async (req, res) => {
         contentType: file.mimetype
       };
     } else {
-      // DATABASE STORAGE METHOD
-      // Convert file data to base64 for storage in database
-      const base64Data = file.data.toString('base64');
-      const dataUrl = `data:${file.mimetype};base64,${base64Data}`;
+      // CLOUDINARY STORAGE METHOD
+      let uploadResult;
+      try {
+        uploadResult = await new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            {
+              folder: 'profile_pictures',
+              public_id: `user_${req.user.id}`,
+              overwrite: true,
+              resource_type: 'image'
+            },
+            (error, result) => {
+              if (error) return reject(error);
+              resolve(result);
+            }
+          );
+          streamifier.createReadStream(file.data).pipe(uploadStream);
+        });
+      } catch (cloudErr) {
+        console.error('Cloudinary upload error:', cloudErr);
+        return res.status(500).json({
+          success: false,
+          message: 'Image upload failed',
+          error: cloudErr.message
+        });
+      }
       
-      // Update user profile with data URL
-      user.profilePicture = dataUrl;
+      // Delete previous Cloudinary image if it exists and differs
+      if (user.profilePictureData && user.profilePictureData.publicId && user.profilePictureData.publicId !== uploadResult.public_id) {
+        try {
+          await cloudinary.uploader.destroy(user.profilePictureData.publicId, { invalidate: true });
+        } catch (destroyErr) {
+          console.warn('Failed to delete old Cloudinary image:', destroyErr);
+        }
+      }
+      
+      // Update user profile with Cloudinary URL
+      user.profilePicture = uploadResult.secure_url;
       
       // Update metadata
       user.profilePictureData = {
-        url: null, // No URL for database storage
+        url: uploadResult.secure_url,
+        publicId: uploadResult.public_id,
         uploadDate: new Date(),
         size: file.size,
         contentType: file.mimetype
       };
-      
-      console.log(`Profile picture for user ${user._id} stored in database (${Math.round(file.size/1024)}KB)`);
     }
     
     await user.save();

@@ -1,9 +1,15 @@
 const User = require('../models/User');
+const Otp = require('../models/Otp');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const NotificationService = require('../services/notification.service');
+const emailService = require('../services/email.service');
+const smsService = require('../services/sms.service');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const cloudinary = require('../utils/cloudinary');
+const streamifier = require('streamifier');
 
 // @desc    Register user
 // @route   POST /api/auth/signup
@@ -87,7 +93,7 @@ exports.signup = async (req, res) => {
       }
       
       // Determine storage method based on configuration
-      const useFileSystem = process.env.PROFILE_STORAGE !== 'database';
+      const useFileSystem = process.env.PROFILE_STORAGE === 'filesystem';
       
       if (useFileSystem) {
         // FILESYSTEM STORAGE METHOD
@@ -152,24 +158,40 @@ exports.signup = async (req, res) => {
           });
         }
       } else {
-        // DATABASE STORAGE METHOD
-        // Convert file data to base64 for storage in database
-        const base64Data = file.data.toString('base64');
-        const dataUrl = `data:${file.mimetype};base64,${base64Data}`;
+        // CLOUDINARY STORAGE METHOD
+        let uploadResult;
+        try {
+          uploadResult = await new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+              {
+                folder: 'profile_pictures',
+                resource_type: 'image'
+              },
+              (error, result) => {
+                if (error) return reject(error);
+                resolve(result);
+              }
+            );
+            streamifier.createReadStream(file.data).pipe(uploadStream);
+          });
+        } catch (cloudErr) {
+          console.error('Cloudinary upload error (signup):', cloudErr);
+          return res.status(500).json({
+            success: false,
+            message: 'Image upload failed',
+            error: cloudErr.message
+          });
+        }
         
-        // Set profile picture data URL
-        profilePicturePath = dataUrl;
-        userData.profilePicture = dataUrl;
-        
-        // Add metadata
+        profilePicturePath = uploadResult.secure_url;
+        userData.profilePicture = uploadResult.secure_url;
         userData.profilePictureData = {
-          url: null, // No URL for database storage
+          url: uploadResult.secure_url,
+          publicId: uploadResult.public_id,
           uploadDate: new Date(),
           size: file.size,
           contentType: file.mimetype
         };
-        
-        console.log(`Profile picture for new user stored in database (${Math.round(file.size/1024)}KB)`);
       }
     }
 
@@ -342,14 +364,162 @@ exports.forgotPassword = async (req, res) => {
       });
     }
 
-    // In a real application, send OTP via email or SMS
-    // For demo, just return success
+    // Delete any existing unverified OTPs for this user
+    await Otp.deleteMany({
+      user: user._id,
+      type: 'password_reset',
+      verified: false
+    });
+
+    // Generate 4-digit OTP
+    const otp = crypto.randomInt(1000, 9999).toString();
+
+    // Save OTP to database
+    const otpDoc = await Otp.create({
+      user: user._id,
+      email: email || null,
+      mobile: mobile || null,
+      otp: otp,
+      type: 'password_reset',
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000) // 5 minutes
+    });
+
+    console.log(`📧 Generated OTP for ${email || mobile}: ${otp}`);
+    console.log('✅ OTP saved to database successfully');
+
+    // Send OTP via email or SMS asynchronously (don't wait for it)
+    if (email) {
+      // Fire and forget - send email in background
+      emailService.sendOtpEmail(email, otp, user.name)
+        .then(() => {
+          console.log('✅ OTP email sent successfully');
+        })
+        .catch(emailError => {
+          console.log('⚠️ Email service not configured or failed:', emailError.message);
+          console.log('📧 OTP (check console): ' + otp);
+        });
+    } else if (mobile) {
+      // Fire and forget - send SMS in background
+      smsService.sendOtpSms(mobile, otp)
+        .then(() => {
+          console.log('✅ OTP SMS sent successfully');
+        })
+        .catch(smsError => {
+          console.log('⚠️ SMS service not configured or failed:', smsError.message);
+          console.log('📱 OTP (check console): ' + otp);
+        });
+    }
+
+    // Return success immediately - OTP is in database
     res.status(200).json({
       success: true,
-      message: 'OTP sent successfully'
+      message: email 
+        ? 'OTP generated successfully. Check your email or server console.' 
+        : 'OTP generated successfully. Check your SMS or server console.',
+      expiresIn: 300 // 5 minutes in seconds
     });
   } catch (error) {
-    console.error(error);
+    console.error('❌ Forgot password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Verify OTP for password reset
+// @route   POST /api/auth/verify-reset-otp
+// @access  Public
+exports.verifyResetOtp = async (req, res) => {
+  try {
+    const { email, mobile, otp } = req.body;
+
+    if ((!email && !mobile) || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email/mobile and OTP'
+      });
+    }
+
+    // Validate OTP format
+    if (otp.length !== 4 || !/^\d+$/.test(otp)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid OTP format. Please enter a 4-digit code.'
+      });
+    }
+
+    // Find user
+    let user;
+    if (email) {
+      user = await User.findOne({ email });
+    } else if (mobile) {
+      user = await User.findOne({ mobile });
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Find the OTP in database
+    const otpDoc = await Otp.findOne({
+      user: user._id,
+      type: 'password_reset',
+      verified: false
+    }).sort({ createdAt: -1 });
+
+    if (!otpDoc) {
+      return res.status(400).json({
+        success: false,
+        message: 'No OTP found. Please request a new one.'
+      });
+    }
+
+    // Check if OTP is expired
+    if (otpDoc.isExpired()) {
+      await Otp.deleteOne({ _id: otpDoc._id });
+      return res.status(400).json({
+        success: false,
+        message: 'OTP has expired. Please request a new one.'
+      });
+    }
+
+    // Check if max attempts reached
+    if (otpDoc.maxAttemptsReached()) {
+      await Otp.deleteOne({ _id: otpDoc._id });
+      return res.status(400).json({
+        success: false,
+        message: 'Maximum OTP attempts reached. Please request a new one.'
+      });
+    }
+
+    // Verify OTP
+    if (otpDoc.otp !== otp) {
+      await otpDoc.incrementAttempts();
+      const remainingAttempts = 3 - otpDoc.attempts;
+      
+      return res.status(400).json({
+        success: false,
+        message: `Invalid OTP. ${remainingAttempts} attempt(s) remaining.`
+      });
+    }
+
+    // OTP is valid - mark as verified but don't delete yet
+    // (will be deleted after password reset)
+    otpDoc.verified = true;
+    await otpDoc.save();
+
+    console.log(`✅ OTP verified for user: ${user.email || user.mobile}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'OTP verified successfully'
+    });
+  } catch (error) {
+    console.error('❌ Verify OTP error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -371,11 +541,19 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    // For demo purposes, consider any 4-digit OTP as valid
+    // Validate OTP format
     if (otp.length !== 4 || !/^\d+$/.test(otp)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid OTP. Please enter a 4-digit code.'
+        message: 'Invalid OTP format. Please enter a 4-digit code.'
+      });
+    }
+
+    // Validate password strength
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
       });
     }
 
@@ -394,29 +572,99 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    // Update password
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(newPassword, salt);
-    await user.save();
-    
-    // Send password change notification
-    try {
-      // Send notification asynchronously (don't wait for it)
-      NotificationService.sendSecurityNotification(
-        user._id,
-        'password_change'
-      ).catch(err => console.error('Error sending password change notification:', err));
-    } catch (notificationError) {
-      // Log but don't fail the password reset process
-      console.error('Error sending password change notification:', notificationError);
+    // Find the OTP in database (accept both verified and unverified)
+    const otpDoc = await Otp.findOne({
+      user: user._id,
+      type: 'password_reset'
+    }).sort({ createdAt: -1 }); // Get the most recent OTP
+
+    if (!otpDoc) {
+      return res.status(400).json({
+        success: false,
+        message: 'No OTP found. Please request a new one.'
+      });
     }
 
+    // Check if OTP is expired
+    if (otpDoc.isExpired()) {
+      await Otp.deleteOne({ _id: otpDoc._id });
+      return res.status(400).json({
+        success: false,
+        message: 'OTP has expired. Please request a new one.'
+      });
+    }
+
+    // If OTP was already verified (from verify-reset-otp endpoint), skip verification
+    // Otherwise, verify it now
+    if (!otpDoc.verified) {
+      // Check if max attempts reached
+      if (otpDoc.maxAttemptsReached()) {
+        await Otp.deleteOne({ _id: otpDoc._id });
+        return res.status(400).json({
+          success: false,
+          message: 'Maximum OTP attempts reached. Please request a new one.'
+        });
+      }
+
+      // Verify OTP
+      if (otpDoc.otp !== otp) {
+        // Increment attempts
+        await otpDoc.incrementAttempts();
+        const remainingAttempts = 3 - otpDoc.attempts;
+        
+        return res.status(400).json({
+          success: false,
+          message: `Invalid OTP. ${remainingAttempts} attempt(s) remaining.`
+        });
+      }
+
+      // OTP is valid - mark as verified
+      otpDoc.verified = true;
+      await otpDoc.save();
+    } else {
+      // OTP was already verified in previous step - just double-check it matches
+      if (otpDoc.otp !== otp) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid OTP.'
+        });
+      }
+    }
+
+    // Update password (pre-save hook will hash it automatically)
+    user.password = newPassword;
+    await user.save();
+
+    // Delete all OTPs for this user after successful reset
+    await Otp.deleteMany({ user: user._id, type: 'password_reset' });
+
+    console.log(`✅ Password reset successful for user: ${user.email || user.mobile}`);
+
+    // Send confirmation notifications asynchronously (fire and forget)
+    if (email) {
+      emailService.sendPasswordChangedEmail(email, user.name)
+        .then(() => console.log('✅ Password change email sent'))
+        .catch(err => console.log('⚠️ Password change email failed:', err.message));
+    }
+    if (mobile && smsService.isAvailable()) {
+      smsService.sendPasswordChangedSms(mobile)
+        .then(() => console.log('✅ Password change SMS sent'))
+        .catch(err => console.log('⚠️ Password change SMS failed:', err.message));
+    }
+    
+    // Send in-app notification (also async)
+    NotificationService.sendSecurityNotification(
+      user._id,
+      'password_change'
+    ).catch(err => console.error('Error sending security notification:', err));
+
+    // Return success immediately
     res.status(200).json({
       success: true,
-      message: 'Password reset successfully'
+      message: 'Password reset successfully. You can now log in with your new password.'
     });
   } catch (error) {
-    console.error(error);
+    console.error('❌ Reset password error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'

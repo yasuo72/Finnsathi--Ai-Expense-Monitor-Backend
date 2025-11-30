@@ -1,6 +1,7 @@
 const SavingsGoal = require('../models/SavingsGoal');
 const Transaction = require('../models/Transaction');
 const mongoose = require('mongoose');
+const GamificationService = require('../services/gamification.service');
 
 // @desc    Get all savings goals
 // @route   GET /api/savings-goals
@@ -62,6 +63,13 @@ exports.createSavingsGoal = async (req, res) => {
     req.body.user = req.user.id;
     
     const savingsGoal = await SavingsGoal.create(req.body);
+    
+    // Update gamification (XP, achievements, challenges)
+    try {
+      await GamificationService.updateAfterSavingsGoal(req.user.id, savingsGoal);
+    } catch (gamificationError) {
+      console.error('Error updating gamification:', gamificationError);
+    }
     
     res.status(201).json({
       success: true,
@@ -138,6 +146,13 @@ exports.updateSavingsGoal = async (req, res) => {
 // @access  Private
 exports.deleteSavingsGoal = async (req, res) => {
   try {
+    // Validate ID format early to avoid CastError
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid savings goal ID format'
+      });
+    }
     const savingsGoal = await SavingsGoal.findOne({
       _id: req.params.id,
       user: req.user.id
@@ -150,7 +165,7 @@ exports.deleteSavingsGoal = async (req, res) => {
       });
     }
     
-    await savingsGoal.remove();
+    await SavingsGoal.deleteOne({ _id: req.params.id });
     
     res.status(200).json({
       success: true,
@@ -199,8 +214,8 @@ exports.addToSavingsGoal = async (req, res) => {
       });
     }
     
-    // Update current amount
-    savingsGoal.currentAmount += amount;
+    // Update current amount (ensure numeric addition)
+    savingsGoal.currentAmount = Number(savingsGoal.currentAmount) + amount;
     
     // Check if goal is completed
     const isCompleted = savingsGoal.currentAmount >= savingsGoal.targetAmount;
@@ -218,6 +233,13 @@ exports.addToSavingsGoal = async (req, res) => {
     });
     
     await savingsGoal.save();
+    
+    // Update gamification (XP, challenges)
+    try {
+      await GamificationService.updateAfterSavingsGoal(req.user.id, savingsGoal);
+    } catch (gamificationError) {
+      console.error('Error updating gamification:', gamificationError);
+    }
     
     // Create a transaction record if requested
     if (createTransaction) {
@@ -293,8 +315,8 @@ exports.withdrawFromSavingsGoal = async (req, res) => {
       });
     }
     
-    // Update current amount
-    savingsGoal.currentAmount -= amount;
+    // Update current amount (ensure numeric subtraction)
+    savingsGoal.currentAmount = Number(savingsGoal.currentAmount) - amount;
     
     // Add a withdrawal entry
     savingsGoal.withdrawals.push({

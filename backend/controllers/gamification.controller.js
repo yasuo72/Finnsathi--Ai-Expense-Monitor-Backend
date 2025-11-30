@@ -2,6 +2,7 @@ const Gamification = require('../models/Gamification');
 const Transaction = require('../models/Transaction');
 const Budget = require('../models/Budget');
 const SavingsGoal = require('../models/SavingsGoal');
+const ChallengeAssignmentService = require('../services/challengeAssignment.service');
 
 // @desc    Get user gamification data
 // @route   GET /api/gamification
@@ -12,19 +13,51 @@ exports.getGamificationData = async (req, res) => {
     
     // If gamification data doesn't exist, create it with default values
     if (!gamification) {
+      const initialChallenges = await ChallengeAssignmentService.assignDailyChallenges(
+        req.user.id,
+        null
+      );
+      
       gamification = await Gamification.create({
         user: req.user.id,
         points: 0,
         level: 1,
         streak: 0,
+        coins: 0,
         financialHealthScore: 50,
-        challenges: generateDefaultChallenges(),
+        challenges: initialChallenges,
         achievements: generateDefaultAchievements()
       });
     }
     
+    // Check if user needs new challenges (daily refresh at 5 AM)
+    if (ChallengeAssignmentService.needsChallengeRefresh(gamification)) {
+      const newChallenges = await ChallengeAssignmentService.assignDailyChallenges(
+        req.user.id,
+        gamification
+      );
+      
+      // Replace old challenges with new ones (don't keep completed ones)
+      gamification.challenges = newChallenges;
+      await gamification.save();
+      console.log(`🔄 Refreshed challenges for user ${req.user.id} - ${newChallenges.length} new challenges`);
+    }
+    
+    // ALWAYS limit challenges to maximum 5 (in case frontend sent more)
+    if (gamification.challenges.length > 5) {
+      console.log(`⚠️ User has ${gamification.challenges.length} challenges, limiting to 5`);
+      gamification.challenges = gamification.challenges.slice(0, 5);
+      await gamification.save();
+    }
+    
+    // Auto-check challenge completion
+    await ChallengeAssignmentService.autoCheckChallenges(req.user.id, gamification);
+    
     // Check and update streak
     await updateStreak(gamification);
+    
+    // Reload gamification to get latest changes
+    gamification = await Gamification.findOne({ user: req.user.id });
     
     res.status(200).json({
       success: true,
@@ -223,6 +256,7 @@ function generateDefaultChallenges() {
   const now = new Date();
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(5, 0, 0, 0); // Reset at 5 AM
   
   return [
     {
@@ -233,7 +267,9 @@ function generateDefaultChallenges() {
       category: 'tracking',
       isCompleted: false,
       expiryDate: tomorrow,
-      icon: 'receipt'
+      icon: 'receipt',
+      currentValue: 0,
+      targetValue: 3
     },
     {
       title: 'Save Some Money',
@@ -243,7 +279,9 @@ function generateDefaultChallenges() {
       category: 'savings',
       isCompleted: false,
       expiryDate: tomorrow,
-      icon: 'savings'
+      icon: 'savings',
+      currentValue: 0,
+      targetValue: 1
     },
     {
       title: 'Budget Master',
@@ -253,7 +291,9 @@ function generateDefaultChallenges() {
       category: 'budgeting',
       isCompleted: false,
       expiryDate: tomorrow,
-      icon: 'account_balance'
+      icon: 'account_balance',
+      currentValue: 0,
+      targetValue: 1
     }
   ];
 }
@@ -321,32 +361,29 @@ function generateDefaultAchievements() {
 // Update user streak
 async function updateStreak(gamification) {
   const now = new Date();
-  const lastActive = new Date(gamification.lastActive);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   
-  // Check if last active was yesterday
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
+  // Get last active date (default to epoch if not set)
+  const lastActive = gamification.lastActive ? new Date(gamification.lastActive) : new Date(0);
+  const lastActiveDate = new Date(lastActive.getFullYear(), lastActive.getMonth(), lastActive.getDate());
   
-  if (
-    lastActive.getFullYear() === yesterday.getFullYear() &&
-    lastActive.getMonth() === yesterday.getMonth() &&
-    lastActive.getDate() === yesterday.getDate()
-  ) {
-    // User was active yesterday, increment streak
-    gamification.streak += 1;
-  } else if (
-    lastActive.getFullYear() !== now.getFullYear() ||
-    lastActive.getMonth() !== now.getMonth() ||
-    lastActive.getDate() !== now.getDate()
-  ) {
-    // User wasn't active yesterday or today yet, reset streak
-    if (
-      lastActive.getFullYear() !== now.getFullYear() ||
-      lastActive.getMonth() !== now.getMonth() ||
-      now.getDate() - lastActive.getDate() > 1
-    ) {
-      gamification.streak = 1;
+  // Calculate days difference
+  const daysDiff = Math.floor((today - lastActiveDate) / (1000 * 60 * 60 * 24));
+  
+  if (daysDiff === 0) {
+    // Same day - no change to streak
+    return;
+  } else if (daysDiff === 1) {
+    // Consecutive day - increment streak
+    gamification.streak = (gamification.streak || 0) + 1;
+    if (gamification.streak > (gamification.longestStreak || 0)) {
+      gamification.longestStreak = gamification.streak;
     }
+    console.log(`🔥 User streak: ${gamification.streak} days`);
+  } else {
+    // Missed days - reset streak to 1
+    gamification.streak = 1;
+    console.log(`⚠️ Streak reset to 1 (missed ${daysDiff - 1} days)`);
   }
   
   // Update last active to today
@@ -623,28 +660,88 @@ exports.updateChallenges = async (req, res) => {
     if (req.body.challenges && Array.isArray(req.body.challenges)) {
       console.log(`Received ${req.body.challenges.length} challenges to update`);
       
-      // For each challenge in the request, update or add it
+      // For each challenge in the request, sanitize then update or add it
       req.body.challenges.forEach(incomingChallenge => {
-        // Try to find an existing challenge with the same ID
-        let existingChallenge = gamification.challenges.id(incomingChallenge.id);
+        // Sanitize incoming challenge to avoid CastError / validation errors
         
-        // If not found by MongoDB ID, try to find by string ID
-        if (!existingChallenge && incomingChallenge.id) {
-          existingChallenge = gamification.challenges.find(c => c.id === incomingChallenge.id);
+        // 1. Remove invalid _id fields (frontend sends string IDs that aren't valid ObjectIds)
+        if (incomingChallenge._id) {
+          const idStr = String(incomingChallenge._id).trim();
+          if (!idStr || !/^[0-9a-fA-F]{24}$/.test(idStr)) {
+            delete incomingChallenge._id;
+          }
         }
         
+        // 2. Remove frontend-generated 'id' field (not valid ObjectId)
+        // Frontend uses ids like "saving_1760660728226_31" which are not MongoDB ObjectIds
+        const frontendId = incomingChallenge.id;
+        delete incomingChallenge.id; // Remove it to avoid MongoDB cast errors
+        
+        // 3. Fix wrongly mapped category/type values coming from older clients
+        const validCategories = ['savings', 'spending', 'budgeting', 'tracking'];
+        const validTypes = ['daily', 'weekly', 'monthly', 'one-time'];
+
+        // If category contains a type value (e.g. "daily"), swap them
+        if (incomingChallenge.category && !validCategories.includes(incomingChallenge.category)) {
+          // If it's actually a type value, move it
+          if (validTypes.includes(incomingChallenge.category)) {
+            incomingChallenge.type = incomingChallenge.category;
+          }
+          // Set a safe default category if none provided or invalid
+          incomingChallenge.category = incomingChallenge.category && validCategories.includes(incomingChallenge.category)
+            ? incomingChallenge.category
+            : 'tracking';
+        }
+
+        // Ensure type is valid, otherwise default to 'daily'
+        if (!incomingChallenge.type || !validTypes.includes(incomingChallenge.type)) {
+          incomingChallenge.type = 'daily';
+        }
+        
+        // Try to find an existing challenge by matching title and category
+        let existingChallenge = gamification.challenges.find(c => 
+          c.title === incomingChallenge.title && 
+          c.category === incomingChallenge.category
+        );
+        
         if (existingChallenge) {
-          console.log(`Updating existing challenge: ${existingChallenge.id}`);
-          // Update existing challenge
+          console.log(`Merging challenge: ${existingChallenge.id}`);
+          // DON'T overwrite backend progress - merge intelligently
           Object.keys(incomingChallenge).forEach(key => {
-            existingChallenge[key] = incomingChallenge[key];
+            // Skip overwriting currentValue if backend has higher value
+            if (key === 'currentValue') {
+              const serverValue = existingChallenge.currentValue || 0;
+              const clientValue = incomingChallenge.currentValue || 0;
+              existingChallenge.currentValue = Math.max(serverValue, clientValue);
+            }
+            // Skip overwriting isCompleted if already completed on server
+            else if (key === 'isCompleted') {
+              existingChallenge.isCompleted = existingChallenge.isCompleted || incomingChallenge.isCompleted;
+            }
+            // Skip overwriting completedDate if already set
+            else if (key === 'completedDate') {
+              if (!existingChallenge.completedDate && incomingChallenge.completedDate) {
+                existingChallenge.completedDate = incomingChallenge.completedDate;
+              }
+            }
+            // Update other fields normally
+            else {
+              existingChallenge[key] = incomingChallenge[key];
+            }
           });
+          console.log(`Final values - currentValue: ${existingChallenge.currentValue}, isCompleted: ${existingChallenge.isCompleted}`);
         } else {
           console.log(`Adding new challenge: ${incomingChallenge.id || 'unknown id'}`);
           // Add new challenge
           gamification.challenges.push(incomingChallenge);
         }
       });
+    }
+    
+    // ALWAYS limit to 5 challenges maximum
+    if (gamification.challenges.length > 5) {
+      console.log(`⚠️ After update, user has ${gamification.challenges.length} challenges, limiting to 5 most recent`);
+      gamification.challenges = gamification.challenges.slice(0, 5);
     }
     
     // Save the updated gamification data

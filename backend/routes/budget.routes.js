@@ -7,7 +7,8 @@ const {
   updateBudget,
   deleteBudget,
   getBudgetStatus,
-  getBudgetStats
+  getBudgetStats,
+  getBudgetAlerts
 } = require('../controllers/budget.controller');
 const { protect } = require('../middleware/auth');
 
@@ -23,6 +24,7 @@ router.route('/:id')
   .put(updateBudget)
   .delete(deleteBudget);
 
+router.get('/alerts', getBudgetAlerts);
 router.get('/stats', getBudgetStats);
 router.get('/:id/status', getBudgetStatus);
 
