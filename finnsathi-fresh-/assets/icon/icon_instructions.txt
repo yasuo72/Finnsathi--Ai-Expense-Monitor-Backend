@@ -1,0 +1,18 @@
+To create your custom app icon for FinSathi:
+
+1. Create two PNG image files in this folder:
+   - icon.png: A square image (1024x1024px recommended) for your main app icon
+   - icon_foreground.png: The foreground layer for adaptive icons on Android 8.0+ (should be 108x108dp)
+
+2. Use a financial theme that represents your app (coin, wallet, chart, etc.)
+
+3. After creating these files, run the following command to generate all the required icon sizes:
+   flutter pub run flutter_launcher_icons
+
+This will replace the default Flutter icon with your custom FinSathi icon on both Android and iOS.
+
+Tips for a good app icon:
+- Keep it simple and recognizable
+- Use your app's color scheme (#4866FF blue is already configured)
+- Make sure it looks good at small sizes
+- Test it on different backgrounds

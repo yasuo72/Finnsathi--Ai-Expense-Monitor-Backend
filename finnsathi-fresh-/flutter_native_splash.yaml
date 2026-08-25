@@ -1,0 +1,27 @@
+flutter_native_splash:
+  # Background color of the splash screen
+  color: "#1E1E2E" # Match fintech-style dark loading background
+  
+  # Use text instead of image
+  image: assets/icon/app_icon.png
+  
+  # Branding text shown on splash screen
+  branding: assets/icon/app_icon.png
+  branding_mode: bottom
+  
+  # Background color for dark mode
+  color_dark: "#1E1E2E"
+  
+  # Android 12 specific settings
+  android_12:
+    # Icon background color for Android 12
+    icon_background_color: "#FFFFFF"
+    
+    # Icon background color for Android 12 in dark mode
+    icon_background_color_dark: "#121212"
+    
+    # Branding image for Android 12
+    branding: assets/icon/app_icon.png
+    
+  # Web specific settings
+  web: false

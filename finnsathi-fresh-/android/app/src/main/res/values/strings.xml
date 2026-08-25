@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FinSathi</string>
+    <!-- Replace with your actual OAuth Client ID from Google Cloud Console -->
+    <string name="server_client_id">YOUR_OAUTH_CLIENT_ID</string>
+</resources>
