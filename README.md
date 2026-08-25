@@ -565,7 +565,7 @@ If you use FinSathi in your academic research or project, please cite:
 ```bibtex
 @article{singh2025finsaathi,
   title={FinSaathi: An AI-Powered Expense Management System for Students},
-  author={Singh, Rohit and Sonam and Singh, Priyanshu Kumar and Chudhari, Tushar},
+  author={Singh, Rohit },
   journal={International Journal of Science, Engineering and Technology},
   volume={13},
   number={4},
